@@ -23,7 +23,7 @@ namespace ViuaBasic
           BasicCompiler compiler = new BasicCompiler();
           if (compiler.load(srcBas))
           {
-            compiler.run();
+            compiler.compile();
           }
         }
         else

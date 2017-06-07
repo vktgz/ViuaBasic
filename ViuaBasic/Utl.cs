@@ -25,7 +25,7 @@ namespace ViuaBasic
             {
               out_quote = false;
             }
-            if (part.Length() > 0)
+            if (part.Length > 0)
             {
               parts.Add(part);
               part = "";
@@ -59,7 +59,7 @@ namespace ViuaBasic
           part = part + c;
         }
       }
-      if (part.Length() > 0)
+      if (part.Length > 0)
       {
         parts.Add(part);
       }
@@ -67,4 +67,3 @@ namespace ViuaBasic
     }
   }
 }
-
