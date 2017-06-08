@@ -9,6 +9,8 @@ namespace ViuaBasic
     private List<string> labels;
     private List<long> goto_lines;
     private List<string> assembly;
+    private Variables vars;
+    private int register;
 
     public BasicCompiler()
     {
@@ -16,6 +18,8 @@ namespace ViuaBasic
       labels = new List<string>();
       goto_lines = new List<long>();
       assembly = new List<string>();
+      vars = new Variables();
+      register = 1;
     }
 
     public bool load(List<string> src)
@@ -88,6 +92,20 @@ namespace ViuaBasic
             return false;
           }
         }
+        else if (instr.Equals("LIST"))
+        {
+          if (!parse_list(line.Key, line.Value))
+          {
+            return false;
+          }
+        }
+        else if (instr.Equals("PRINT"))
+        {
+          if (!parse_print(line.Key, line.Value))
+          {
+            return false;
+          }
+        }
         else
         {
           Console.WriteLine("?SYNTAX ERROR: UNKNOWN INSTRUCTION: " + instr);
@@ -110,13 +128,83 @@ namespace ViuaBasic
         {
           continue;
         }
-        string buf = line_from.ToString();
+        string buf = line.Key.ToString();
         foreach (string part in line.Value)
         {
           buf = buf + " " + part;
         }
         Console.WriteLine(buf);
       }
+    }
+
+    private bool parse_list(long line_num, List<string> parts)
+    {
+      List<string> args = new List<string>();
+      if (parts.Count > 1)
+      {
+        args = Utl.split_separator(Utl.flat_list(parts.GetRange(1, parts.Count - 1)), ',', true, true);
+      }
+      long line_from = 0;
+      long line_to = 0;
+      bool result = true;
+      if (args.Count > 0)
+      {
+        result = false;
+        if (args.Count == 1)
+        {
+          try
+          {
+            line_from = Convert.ToInt64(args[0]);
+          }
+          catch
+          {
+            line_from = 0;
+          }
+          result = (line_from > 0);
+        }
+        if (args.Count == 2)
+        {
+          if (args[0] == ",")
+          {
+            try
+            {
+              line_to = Convert.ToInt64(args[1]);
+            }
+            catch
+            {
+              line_to = 0;
+            }
+            result = (line_to > 0);
+          }
+        }
+        if (args.Count == 3)
+        {
+          if (args[1] == ",")
+          {
+            try
+            {
+              line_from = Convert.ToInt64(args[0]);
+              line_to = Convert.ToInt64(args[2]);
+            }
+            catch
+            {
+              line_from = 0;
+              line_to = 0;
+            }
+            result = (line_from > 0) && (line_to > 0);
+          }
+        }
+      }
+      if (result)
+      {
+        list(line_from, line_to);
+      }
+      else
+      {
+        Console.WriteLine("?SYNTAX ERROR: EXPECTING LINE NUMBER OR LABEL");
+        list(line_num, line_num);
+      }
+      return result;
     }
 
     private bool parse_label(long line_num, List<string> parts)
@@ -182,6 +270,88 @@ namespace ViuaBasic
         return false;
       }
       return true;
+    }
+
+    private bool parse_print(long line_num, List<string> parts)
+    {
+      if (parts.Count < 2)
+      {
+        Console.WriteLine("?SYNTAX ERROR: EXPECTING PRINT LIST");
+        list(line_num, line_num);
+        return false;
+      }
+      List<string> exp = parts.GetRange(1, parts.Count - 1);
+      if (parse_print_list(register, exp))
+      {
+        assembly.Add("print %" + register + " local");
+        return true;
+      }
+      else
+      {
+        list(line_num, line_num);
+        return false;
+      }
+    }
+
+    private bool parse_print_list(int plist_reg, List<string> exp)
+    {
+      List<string> plist = Utl.split_separator(Utl.flat_list(exp), ',', true, true);
+      bool result = false;
+      if ((plist.Count % 2) != 0)
+      {
+        result = true;
+        int idx = 0;
+        assembly.Add("text %" + plist_reg + " local \"\"");
+        while (idx < plist.Count)
+        {
+          if (idx > 0)
+          {
+            result = result && (plist[idx - 1].Equals(","));
+            if (!result)
+            {
+              break;
+            }
+          }
+          if (vars.exists(plist[idx].ToUpper()))
+          {
+            assembly.Add("text %" + (plist_reg + 1) + " local %" + vars.get_register(plist[idx].ToUpper()) + " local");
+            assembly.Add("textconcat %" + plist_reg + " local %" + plist_reg + " local %" + (plist_reg + 1) + " local");
+          }
+          else
+          {
+            int math_reg = plist_reg + 1;
+            List<string> math_exp = new List<string>();
+            math_exp.Add(plist[idx]);
+            if (parse_float_exp(math_reg, math_exp))
+            {
+              assembly.Add("text %" + math_reg + " local %" + math_reg + " local");
+              assembly.Add("textconcat %" + plist_reg + " local %" + plist_reg + " local %" + math_reg + " local");
+            }
+            else if (Utl.is_quoted(plist[idx]))
+            {
+              assembly.Add("text %" + (plist_reg + 1) + " local " + plist[idx]);
+              assembly.Add("textconcat %" + plist_reg + " local %" + plist_reg + " local %" + (plist_reg + 1) + " local");
+            }
+            else
+            {
+              result = false;
+              break;
+            }
+          }
+          idx = idx + 2;
+        }
+      }
+      if (!result)
+      {
+        Console.WriteLine("?SYNTAX ERROR: ILLEGAL PRINT LIST");
+      }
+      return result;
+    }
+
+    private bool parse_float_exp(int float_reg, List<string> exp)
+    {
+      // TODO
+      return false;
     }
   }
 }
