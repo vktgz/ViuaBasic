@@ -149,5 +149,184 @@ namespace ViuaBasic
       }
       return buf;
     }
+
+    public static List<string> exp_to_rpn(List<string> exp)
+    {
+      List<string> math = exp_to_math(exp);
+      List<string> rpn = new List<string>();
+      Stack<string> stack = new Stack<string>();
+      bool unary = true;
+      bool negate = false;
+      foreach (string arg in math)
+      {
+        if (arg.Equals("("))
+        {
+          if (negate)
+          {
+            rpn.Add("-1");
+            while (stack.Count > 0)
+            {
+              if (stack.Peek().Equals("*") || stack.Peek().Equals("/") || stack.Peek().Equals("%") || stack.Peek().Equals("^"))
+              {
+                rpn.Add(stack.Pop());
+                continue;
+              }
+              else
+              {
+                break;
+              }
+            }
+            stack.Push("*");
+            negate = false;
+          }
+          stack.Push(arg);
+          unary = true;
+        }
+        else if (arg.Equals(")"))
+        {
+          while (stack.Count > 0)
+          {
+            string elem = stack.Pop();
+            if (elem.Equals("("))
+            {
+              break;
+            }
+            else
+            {
+              rpn.Add(elem);
+            }
+          }
+          unary = false;
+          negate = false;
+        }
+        else if (arg.Equals("+") || arg.Equals("-"))
+        {
+          if (unary)
+          {
+            if (arg.Equals("-"))
+            {
+              negate = !negate;
+            }
+          }
+          else
+          {
+            while (stack.Count > 0)
+            {
+              if (stack.Peek().Equals("+") || stack.Peek().Equals("-") || stack.Peek().Equals("*") || stack.Peek().Equals("/") || stack.Peek().Equals("%") || stack.Peek().Equals("^"))
+              {
+                rpn.Add(stack.Pop());
+                continue;
+              }
+              else
+              {
+                break;
+              }
+            }
+            stack.Push(arg);
+            unary = true;
+            negate = false;
+          }
+        }
+        else if (arg.Equals("*") || arg.Equals("/") || arg.Equals("%"))
+        {
+          while (stack.Count > 0)
+          {
+            if (stack.Peek().Equals("*") || stack.Peek().Equals("/") || stack.Peek().Equals("%") || stack.Peek().Equals("^"))
+            {
+              rpn.Add(stack.Pop());
+              continue;
+            }
+            else
+            {
+              break;
+            }
+          }
+          stack.Push(arg);
+          unary = true;
+          negate = false;
+        }
+        else if (arg.Equals("^"))
+        {
+          while (stack.Count > 0)
+          {
+            if (stack.Peek().Equals("^"))
+            {
+              rpn.Add(stack.Pop());
+              continue;
+            }
+            else
+            {
+              break;
+            }
+          }
+          stack.Push(arg);
+          unary = true;
+          negate = false;
+        }
+        else
+        {
+          if (negate)
+          {
+            rpn.Add("-" + arg);
+          }
+          else
+          {
+            rpn.Add(arg);
+          }
+          unary = false;
+          negate = false;
+        }
+      }
+      while (stack.Count > 0)
+      {
+        rpn.Add(stack.Pop());
+      }
+      return rpn;
+    }
+
+    public static List<string> exp_to_math(List<string> exp)
+    {
+      List<string> tmp1 = new List<string>();
+      foreach (string elem in exp)
+      {
+        tmp1.AddRange(split_separator(elem, '(', true, true));
+      }
+      List<string> tmp2 = new List<string>();
+      foreach (string elem in tmp1)
+      {
+        tmp2.AddRange(split_separator(elem, ')', true, true));
+      }
+      tmp1.Clear();
+      foreach (string elem in tmp2)
+      {
+        tmp1.AddRange(split_separator(elem, '+', true, true));
+      }
+      tmp2.Clear();
+      foreach (string elem in tmp1)
+      {
+        tmp2.AddRange(split_separator(elem, '-', true, true));
+      }
+      tmp1.Clear();
+      foreach (string elem in tmp2)
+      {
+        tmp1.AddRange(split_separator(elem, '*', true, true));
+      }
+      tmp2.Clear();
+      foreach (string elem in tmp1)
+      {
+        tmp2.AddRange(split_separator(elem, '/', true, true));
+      }
+      tmp1.Clear();
+      foreach (string elem in tmp2)
+      {
+        tmp1.AddRange(split_separator(elem, '%', true, true));
+      }
+      tmp2.Clear();
+      foreach (string elem in tmp1)
+      {
+        tmp2.AddRange(split_separator(elem, '^', true, true));
+      }
+      return tmp2;
+    }
   }
 }
