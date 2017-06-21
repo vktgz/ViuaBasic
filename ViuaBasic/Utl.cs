@@ -140,7 +140,7 @@ namespace ViuaBasic
       return (arg.Length > 1) && (arg.StartsWith("\"")) && (arg.EndsWith("\""));
     }
 
-    public static string flat_list(List<string> arg)
+    public static string exp_to_str(List<string> arg)
     {
       string buf = "";
       foreach (string s in arg)

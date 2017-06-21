@@ -6,11 +6,11 @@ namespace ViuaBasic
   public class BasicCompiler
   {
     private Dictionary<long, List<string>> listing;
-    private List<string> labels;
+    private List<string> labels, assembly;
     private List<long> goto_lines;
-    private List<string> assembly;
     private Variables vars;
     private int register;
+    private bool math_mod, math_pow;
 
     public BasicCompiler()
     {
@@ -20,6 +20,8 @@ namespace ViuaBasic
       assembly = new List<string>();
       vars = new Variables();
       register = 1;
+      math_mod = false;
+      math_pow = false;
     }
 
     public bool load(List<string> src)
@@ -113,6 +115,14 @@ namespace ViuaBasic
           return false;
         }
       }
+      if (math_mod)
+      {
+        // TODO: mod function
+      }
+      if (math_pow)
+      {
+        // TODO: pow function
+      }
       return true;
     }
 
@@ -142,7 +152,7 @@ namespace ViuaBasic
       List<string> args = new List<string>();
       if (parts.Count > 1)
       {
-        args = Utl.split_separator(Utl.flat_list(parts.GetRange(1, parts.Count - 1)), ',', true, true);
+        args = Utl.split_separator(Utl.exp_to_str(parts.GetRange(1, parts.Count - 1)), ',', true, true);
       }
       long line_from = 0;
       long line_to = 0;
@@ -295,7 +305,7 @@ namespace ViuaBasic
 
     private bool parse_print_list(int plist_reg, List<string> exp)
     {
-      List<string> plist = Utl.split_separator(Utl.flat_list(exp), ',', true, true);
+      List<string> plist = Utl.split_separator(Utl.exp_to_str(exp), ',', true, true);
       bool result = false;
       if ((plist.Count % 2) != 0)
       {
@@ -322,7 +332,7 @@ namespace ViuaBasic
             int math_reg = plist_reg + 1;
             List<string> math_exp = new List<string>();
             math_exp.Add(plist[idx]);
-            if (parse_float_exp(math_reg, math_exp))
+            if (parse_float_exp(math_reg, math_exp, false))
             {
               assembly.Add("text %" + math_reg + " local %" + math_reg + " local");
               assembly.Add("textconcat %" + plist_reg + " local %" + plist_reg + " local %" + math_reg + " local");
@@ -348,10 +358,133 @@ namespace ViuaBasic
       return result;
     }
 
-    private bool parse_float_exp(int float_reg, List<string> exp)
+    private bool parse_float_exp(int float_reg, List<string> exp, bool show_err)
     {
-      // TODO
-      return false;
+      List<string> rpn = Utl.exp_to_rpn(exp);
+      assembly.Add("vec %" + (float_reg + 1) + " local");
+      int stack = 0;
+      foreach (string arg in rpn)
+      {
+        double num = 0;
+        bool is_num = false;
+        try
+        {
+          num = Convert.ToDouble(arg);
+          is_num = true;
+        }
+        catch
+        {
+          is_num = false;
+        }
+        if (is_num)
+        {
+          assembly.Add("fstore %" + (float_reg + 2) + " local " + num);
+          assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
+          stack++;
+        }
+        else
+        {
+          if (vars.exists(arg.ToUpper()))
+          {
+            if (vars.get_type(arg.ToUpper()).Equals(Variables.Type.FLOAT))
+            {
+              assembly.Add("vpush %" + (float_reg + 1) + " local %" + vars.get_register(arg.ToUpper()) + " local");
+              stack++;
+            }
+            if (vars.get_type(arg.ToUpper()).Equals(Variables.Type.INTEGER))
+            {
+              assembly.Add("itof %" + (float_reg + 2) + " local %" + vars.get_register(arg.ToUpper()) + " local");
+              assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
+              stack++;
+            }
+            if (vars.get_type(arg.ToUpper()).Equals(Variables.Type.STRING))
+            {
+              assembly.Add("stof %" + (float_reg + 2) + " local %" + vars.get_register(arg.ToUpper()) + " local");
+              assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
+              stack++;
+            }
+          }
+          else if (arg.Equals("+") || arg.Equals("-") || arg.Equals("*") || arg.Equals("/") || arg.Equals("%") || arg.Equals("^"))
+          {
+            if (stack < 2)
+            {
+              if (show_err)
+              {
+                Console.WriteLine("?SYNTAX ERROR: ILLEGAL ARITHMETIC EXPRESSION " + Utl.exp_to_str(exp));
+              }
+              return false;
+            }
+            else
+            {
+              assembly.Add("vpop %" + (float_reg + 2) + " local %" + (float_reg + 1) + " local");
+              stack--;
+              assembly.Add("vpop %" + (float_reg + 3) + " local %" + (float_reg + 1) + " local");
+              stack--;
+              if (arg.Equals("+"))
+              {
+                assembly.Add("add %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local %" + (float_reg + 2) + " local");
+                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
+                stack++;
+              }
+              if (arg.Equals("-"))
+              {
+                assembly.Add("sub %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local %" + (float_reg + 2) + " local");
+                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
+                stack++;
+              }
+              if (arg.Equals("*"))
+              {
+                assembly.Add("mul %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local %" + (float_reg + 2) + " local");
+                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
+                stack++;
+              }
+              if (arg.Equals("/"))
+              {
+                assembly.Add("div %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local %" + (float_reg + 2) + " local");
+                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
+                stack++;
+              }
+              if (arg.Equals("%"))
+              {
+                assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + ") (param %1 %" + (float_reg + 2) + " local)]");
+                assembly.Add("call %" + (float_reg + 2) + " local mod/2");
+                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
+                stack++;
+                math_mod = true;
+              }
+              if (arg.Equals("^"))
+              {
+                assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + ") (param %1 %" + (float_reg + 2) + " local)]");
+                assembly.Add("call %" + (float_reg + 2) + " local pow/2");
+                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
+                stack++;
+                math_pow = true;
+              }
+            }
+          }
+          else
+          {
+            if (show_err)
+            {
+              Console.WriteLine("?SYNTAX ERROR: ILLEGAL ARGUMENT " + arg + " IN ARITHMETIC EXPRESSION " + Utl.exp_to_str(exp));
+            }
+            return false;
+          }
+        }
+      }
+      if (stack.Equals(1))
+      {
+        assembly.Add("vpop %" + float_reg + " local %" + (float_reg + 1) + " local");
+        return true;
+      }
+      else
+      {
+        if (show_err)
+        {
+          Console.WriteLine("?SYNTAX ERROR: ILLEGAL ARITHMETIC EXPRESSION " + Utl.exp_to_str(exp));
+        }
+        return false;
+      }
     }
   }
 }
