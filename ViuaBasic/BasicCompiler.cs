@@ -10,7 +10,7 @@ namespace ViuaBasic
     private List<long> goto_lines;
     private Variables vars;
     private int register;
-    private bool math_mod, math_pow;
+    private bool math_modulo, math_power, math_round;
 
     public BasicCompiler()
     {
@@ -20,8 +20,9 @@ namespace ViuaBasic
       assembly = new List<string>();
       vars = new Variables();
       register = 1;
-      math_mod = false;
-      math_pow = false;
+      math_modulo = false;
+      math_power = false;
+      math_round = false;
     }
 
     public bool load(List<string> src)
@@ -108,6 +109,13 @@ namespace ViuaBasic
             return false;
           }
         }
+        else if (instr.Equals("LET"))
+        {
+          if (!parse_let(line.Key, line.Value))
+          {
+            return false;
+          }
+        }
         else
         {
           Console.WriteLine("?SYNTAX ERROR: UNKNOWN INSTRUCTION: " + instr);
@@ -115,13 +123,17 @@ namespace ViuaBasic
           return false;
         }
       }
-      if (math_mod)
+      if (math_modulo)
       {
-        // TODO: mod function
+        // TODO: modulo function
       }
-      if (math_pow)
+      if (math_power)
       {
-        // TODO: pow function
+        // TODO: power function
+      }
+      if (math_round)
+      {
+        // TODO: round function
       }
       return true;
     }
@@ -358,6 +370,22 @@ namespace ViuaBasic
       return result;
     }
 
+    private bool parse_integer_exp(int int_reg, List<string> exp, bool show_err)
+    {
+      if (parse_float_exp(int_reg + 1, exp, show_err))
+      {
+        assembly.Add("frame ^[(param %0 %" + (int_reg + 1) + " local)]");
+        assembly.Add("call %" + (int_reg + 1) + " local round/1");
+        assembly.Add("ftoi %" + int_reg + " local %" + (int_reg + 1) + " local");
+        math_round = true;
+        return true;
+      }
+      else
+      {
+        return false;
+      }
+    }
+
     private bool parse_float_exp(int float_reg, List<string> exp, bool show_err)
     {
       List<string> rpn = Utl.exp_to_rpn(exp);
@@ -446,19 +474,19 @@ namespace ViuaBasic
               }
               if (arg.Equals("%"))
               {
-                assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + ") (param %1 %" + (float_reg + 2) + " local)]");
+                assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local) (param %1 %" + (float_reg + 2) + " local)]");
                 assembly.Add("call %" + (float_reg + 2) + " local mod/2");
                 assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
                 stack++;
-                math_mod = true;
+                math_modulo = true;
               }
               if (arg.Equals("^"))
               {
-                assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + ") (param %1 %" + (float_reg + 2) + " local)]");
+                assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local) (param %1 %" + (float_reg + 2) + " local)]");
                 assembly.Add("call %" + (float_reg + 2) + " local pow/2");
                 assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
                 stack++;
-                math_pow = true;
+                math_power = true;
               }
             }
           }
@@ -485,6 +513,106 @@ namespace ViuaBasic
         }
         return false;
       }
+    }
+
+    private bool parse_let(long line_num, List<string> parts)
+    {
+      bool res = false;
+      if (parts.Count > 3)
+      {
+        string var_name = parts[1].ToUpper();
+        Variables.Type var_type = Variables.Type.UNKNOWN;
+        int idx = 0;
+        if (parts[2].Equals(":"))
+        {
+          if (parts.Count > 5)
+          {
+            if (parts[4].Equals("="))
+            {
+              idx = 5;
+              if (vars.exists(var_name))
+              {
+                var_type = vars.get_type(var_name);
+                if (!var_type.ToString().Equals(parts[3].ToUpper()))
+                {
+                  Console.WriteLine("?RUNTIME ERROR: VARIABLE " + var_name + " IS OF TYPE " + var_type.ToString());
+                }
+              }
+              else
+              {
+                if (parts[3].ToUpper().Equals("INTEGER"))
+                {
+                  var_type = Variables.Type.INTEGER;
+                  res = true;
+                }
+                if (parts[3].ToUpper().Equals("FLOAT"))
+                {
+                  var_type = Variables.Type.FLOAT;
+                  res = true;
+                }
+                if (parts[3].ToUpper().Equals("STRING"))
+                {
+                  var_type = Variables.Type.STRING;
+                  res = true;
+                }
+              }
+            }
+          }
+        }
+        else
+        {
+          if (parts[2].Equals("="))
+          {
+            idx = 3;
+            if (vars.exists(var_name))
+            {
+              var_type = vars.get_type(var_name);
+              res = true;
+            }
+            else
+            {
+              Console.WriteLine("?RUNTIME ERROR: EXPECTING TYPE FOR NEW VARIABLE " + var_name);
+            }
+          }
+        }
+        if (res)
+        {
+          res = false;
+          if (var_type.Equals(Variables.Type.INTEGER))
+          {
+            List<string> exp = parts.GetRange(idx, parts.Count - idx);
+            if (parse_integer_exp(register, exp, true))
+            {
+              vars.set_var(var_name, var_type, register++);
+              res = true;
+            }
+          }
+          if (var_type.Equals(Variables.Type.FLOAT))
+          {
+            List<string> exp = parts.GetRange(idx, parts.Count - idx);
+            if (parse_float_exp(register, exp, true))
+            {
+              vars.set_var(var_name, var_type, register++);
+              res = true;
+            }
+          }
+          if (var_type.Equals(Variables.Type.STRING))
+          {
+            List<string> exp = parts.GetRange(idx, parts.Count - idx);
+            if (parse_print_list(register, exp))
+            {
+              vars.set_var(var_name, var_type, register++);
+              res = true;
+            }
+          }
+        }
+      }
+      if (!res)
+      {
+        Console.WriteLine("?SYNTAX ERROR: ILLEGAL ASSIGNMENT");
+        list(line_num, line_num);
+      }
+      return res;
     }
   }
 }

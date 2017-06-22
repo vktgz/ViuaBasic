@@ -7,6 +7,7 @@ namespace ViuaBasic
   {
     public enum Type
     {
+      UNKNOWN,
       INTEGER,
       FLOAT,
       STRING
