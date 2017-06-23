@@ -5,10 +5,18 @@ namespace ViuaBasic
 {
   public class BasicCompiler
   {
+    private struct ForLoop
+    {
+      public long line_num;
+      public int register, from, to, step;
+      public bool integer;
+    }
+
     private Dictionary<long, List<string>> listing;
     private List<string> labels, assembly;
     private List<long> goto_lines;
     private Variables vars;
+    private Dictionary<string, ForLoop> for_loops;
     private int register;
     private bool math_modulo, math_power, math_round;
 
@@ -19,6 +27,7 @@ namespace ViuaBasic
       goto_lines = new List<long>();
       assembly = new List<string>();
       vars = new Variables();
+      for_loops = new Dictionary<string, ForLoop>();
       register = 1;
       math_modulo = false;
       math_power = false;
@@ -116,6 +125,20 @@ namespace ViuaBasic
             return false;
           }
         }
+        else if (instr.Equals("FOR"))
+        {
+          if (!parse_for(line.Key, line.Value))
+          {
+            return false;
+          }
+        }
+        else if (instr.Equals("NEXT"))
+        {
+          if (!parse_next(line.Key, line.Value))
+          {
+            return false;
+          }
+        }
         else
         {
           Console.WriteLine("?SYNTAX ERROR: UNKNOWN INSTRUCTION: " + instr);
@@ -172,7 +195,7 @@ namespace ViuaBasic
       if (args.Count > 0)
       {
         result = false;
-        if (args.Count == 1)
+        if (args.Count.Equals(1))
         {
           try
           {
@@ -184,9 +207,9 @@ namespace ViuaBasic
           }
           result = (line_from > 0);
         }
-        if (args.Count == 2)
+        if (args.Count.Equals(2))
         {
-          if (args[0] == ",")
+          if (args[0].Equals(","))
           {
             try
             {
@@ -199,9 +222,9 @@ namespace ViuaBasic
             result = (line_to > 0);
           }
         }
-        if (args.Count == 3)
+        if (args.Count.Equals(3))
         {
-          if (args[1] == ",")
+          if (args[1].Equals(","))
           {
             try
             {
@@ -231,7 +254,7 @@ namespace ViuaBasic
 
     private bool parse_label(long line_num, List<string> parts)
     {
-      if (parts.Count != 2)
+      if (!parts.Count.Equals(2))
       {
         Console.WriteLine("?SYNTAX ERROR: EXPECTING LABEL");
         list(line_num, line_num);
@@ -249,7 +272,7 @@ namespace ViuaBasic
 
     private bool parse_goto_line(long line_num, List<string> parts)
     {
-      if (parts.Count != 2)
+      if (!parts.Count.Equals(2))
       {
         Console.WriteLine("?SYNTAX ERROR: EXPECTING LINE NUMBER OR LABEL");
         list(line_num, line_num);
@@ -319,7 +342,7 @@ namespace ViuaBasic
     {
       List<string> plist = Utl.split_separator(Utl.exp_to_str(exp), ',', true, true);
       bool result = false;
-      if ((plist.Count % 2) != 0)
+      if (!(plist.Count % 2).Equals(0))
       {
         result = true;
         int idx = 0;
@@ -451,32 +474,27 @@ namespace ViuaBasic
               if (arg.Equals("+"))
               {
                 assembly.Add("add %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local %" + (float_reg + 2) + " local");
-                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
                 stack++;
               }
               if (arg.Equals("-"))
               {
                 assembly.Add("sub %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local %" + (float_reg + 2) + " local");
-                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
                 stack++;
               }
               if (arg.Equals("*"))
               {
                 assembly.Add("mul %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local %" + (float_reg + 2) + " local");
-                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
                 stack++;
               }
               if (arg.Equals("/"))
               {
                 assembly.Add("div %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local %" + (float_reg + 2) + " local");
-                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
                 stack++;
               }
               if (arg.Equals("%"))
               {
                 assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local) (param %1 %" + (float_reg + 2) + " local)]");
                 assembly.Add("call %" + (float_reg + 2) + " local mod/2");
-                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
                 stack++;
                 math_modulo = true;
               }
@@ -484,10 +502,10 @@ namespace ViuaBasic
               {
                 assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local) (param %1 %" + (float_reg + 2) + " local)]");
                 assembly.Add("call %" + (float_reg + 2) + " local pow/2");
-                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
                 stack++;
                 math_power = true;
               }
+              assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
             }
           }
           else
@@ -613,6 +631,165 @@ namespace ViuaBasic
         list(line_num, line_num);
       }
       return res;
+    }
+
+    private bool parse_for(long line_num, List<string> parts)
+    {
+      bool res = false;
+      ForLoop for_loop = new ForLoop();
+      for_loop.line_num = line_num;
+      bool stop = false;
+      int idx = 0;
+      if (parts.Count > 5)
+      {
+        if (parts[2].Equals("="))
+        {
+          string var_name = parts[1].ToUpper();
+          if (for_loops.ContainsKey(var_name))
+          {
+            Console.WriteLine("?SYNTAX ERROR: NESTED LOOP FOR VARIABLE " + var_name);
+            list(for_loops[var_name].line_num, line_num);
+            return false;
+          }
+          if (vars.exists(var_name))
+          {
+            if (vars.get_type(var_name).Equals(Variables.Type.INTEGER))
+            {
+              for_loop.register = vars.get_register(var_name);
+              for_loop.integer = true;
+            }
+            else if (vars.get_type(var_name).Equals(Variables.Type.FLOAT))
+            {
+              for_loop.register = vars.get_register(var_name);
+              for_loop.integer = false;
+            }
+            else
+            {
+              Console.WriteLine("?SYNTAX ERROR: VARIABLE " + var_name + " IS NOT NUMERIC");
+              list(line_num, line_num);
+              return false;
+            }
+          }
+          else
+          {
+            for_loop.register = register++;
+            for_loop.integer = true;
+            vars.set_var(var_name, Variables.Type.INTEGER, for_loop.register);
+          }
+          List<string> from_exp = Utl.take_until(3, "TO", parts);
+          if ((for_loop.integer && parse_integer_exp(register, from_exp, true)) || ((!for_loop.integer) && parse_float_exp(register, from_exp, true)))
+          {
+            for_loop.from = register++;
+            idx = 3 + from_exp.Count;
+          }
+          else
+          {
+            Console.WriteLine("?SYNTAX ERROR: EXPECTING NUMERIC FROM EXPRESSION");
+            list(line_num, line_num);
+            return false;
+          }
+          stop = true;
+          if (parts.Count > (idx + 1))
+          {
+            if (parts[idx].ToUpper().Equals("TO"))
+            {
+              List<string> to_exp = Utl.take_until(idx + 1, "STEP", parts);
+              if ((for_loop.integer && parse_integer_exp(register, to_exp, true)) || ((!for_loop.integer) && parse_float_exp(register, to_exp, true)))
+              {
+                for_loop.to = register++;
+                idx = idx + 1 + to_exp.Count;
+                stop = false;
+              }
+            }
+          }
+          if (stop)
+          {
+            Console.WriteLine("?SYNTAX ERROR: EXPECTING NUMERIC TO EXPRESSION");
+            list(line_num, line_num);
+            return false;
+          }
+          for_loop.step = 0;
+          if (parts.Count > idx)
+          {
+            stop = true;
+            if (parts.Count > (idx + 1))
+            {
+              if (parts[idx].ToUpper().Equals("STEP"))
+              {
+                List<string> step_exp = parts.GetRange(idx + 1, parts.Count - (idx + 1));
+                if ((for_loop.integer && parse_integer_exp(register, step_exp, true)) || ((!for_loop.integer) && parse_float_exp(register, step_exp, true)))
+                {
+                  for_loop.step = register++;
+                  stop = false;
+                }
+              }
+            }
+            if (stop)
+            {
+              Console.WriteLine("?SYNTAX ERROR: EXPECTING NUMERIC STEP EXPRESSION");
+              list(line_num, line_num);
+              return false;
+            }
+          }
+          if (for_loop.step.Equals(0))
+          {
+            for_loop.step = register++;
+            if (for_loop.integer)
+            {
+              assembly.Add("istore %" + for_loop.step + " local 1");
+            }
+            else
+            {
+              assembly.Add("fstore %" + for_loop.step + " local 1");
+            }
+          }
+          assembly.Add("copy %" + for_loop.register + " local %" + for_loop.from + " local");
+          assembly.Add(".mark: for_" + for_loop.line_num + "_begin");
+          assembly.Add("if (lt %" + register + " local %" + for_loop.step + " local (fstore %" + (register + 1) + " local 0)) for_" + for_loop.line_num + "_descend");
+          assembly.Add("if (gt %" + register + " local %" + for_loop.register + " local %" + for_loop.to + " local) for_" + for_loop.line_num + "_end");
+          assembly.Add("jump for_" + for_loop.line_num + "_step");
+          assembly.Add(".mark: for_" + for_loop.line_num + "_descend");
+          assembly.Add("if (lt %" + register + " local %" + for_loop.register + " local %" + for_loop.to + " local) for_" + for_loop.line_num + "_end");
+          assembly.Add(".mark: for_" + for_loop.line_num + "_step");
+          for_loops[var_name] = for_loop;
+          res = true;
+        }
+      }
+      if (!res)
+      {
+        Console.WriteLine("?SYNTAX ERROR: ILLEGAL LOOP ARGUMENT");
+        list(line_num, line_num);
+      }
+      return res;
+    }
+
+    private bool parse_next(long line_num, List<string> parts)
+    {
+      if (parts.Count.Equals(2))
+      {
+        string var_name = parts[1].ToUpper();
+        if (for_loops.ContainsKey(var_name))
+        {
+          ForLoop for_loop = for_loops[var_name];
+          assembly.Add("add %" + for_loop.register + " local %" + for_loop.register + " local %" + for_loop.step + " local");
+          assembly.Add("jump for_" + for_loop.line_num + "_begin");
+          assembly.Add(".mark: for_" + for_loop.line_num + "_end");
+          for_loops.Remove(var_name);
+          return true;
+        }
+        else
+        {
+          Console.WriteLine("?SYNTAX ERROR: UNKNOWN LOOP VARIABLE " + var_name);
+          list(line_num, line_num);
+          return false;
+        }
+      }
+      else
+      {
+        Console.WriteLine("?SYNTAX ERROR: EXPECTING FOR LOOP VARIABLE");
+        list(line_num, line_num);
+        return false;
+      }
     }
   }
 }

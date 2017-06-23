@@ -32,7 +32,7 @@ namespace ViuaBasic
             }
           }
         }
-        else if (c == '"')
+        else if (c.Equals('"'))
         {
           part = part + c;
           if (in_quote)
@@ -74,7 +74,7 @@ namespace ViuaBasic
       bool out_quote = false;
       foreach (char c in line)
       {
-        if (c == sep)
+        if (c.Equals(sep))
         {
           if (in_quote)
           {
@@ -97,7 +97,7 @@ namespace ViuaBasic
             }
           }
         }
-        else if (c == '"')
+        else if (c.Equals('"'))
         {
           part = part + c;
           if (in_quote)
@@ -327,6 +327,21 @@ namespace ViuaBasic
         tmp2.AddRange(split_separator(elem, '^', true, true));
       }
       return tmp2;
+    }
+
+    public static List<string> take_until(int from_idx, string to_ident, List<string> parts)
+    {
+      List<string> res = new List<string>();
+      int idx = from_idx;
+      while (idx < parts.Count)
+      {
+        if (parts[idx].ToUpper().Equals(to_ident))
+        {
+          return res;
+        }
+        res.Add(parts[idx++]);
+      }
+      return res;
     }
   }
 }
