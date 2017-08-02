@@ -17,7 +17,8 @@ namespace ViuaBasic
     private List<long> goto_lines;
     private Variables vars;
     private Dictionary<string, ForLoop> for_loops;
-    private int register;
+    private Stack<int> nested_ifs;
+    private int register, if_idx;
     private bool math_modulo, math_power, math_round;
 
     public BasicCompiler()
@@ -28,7 +29,9 @@ namespace ViuaBasic
       assembly = new List<string>();
       vars = new Variables();
       for_loops = new Dictionary<string, ForLoop>();
+      nested_ifs = new Stack<int>();
       register = 1;
+      if_idx = 0;
       math_modulo = false;
       math_power = false;
       math_round = false;
@@ -79,6 +82,13 @@ namespace ViuaBasic
               return false;
             }
           }
+          if (instr.Equals("IF"))
+          {
+            if (!parse_if_label(line_num, parts))
+            {
+              return false;
+            }
+          }
         }
       }
       return (listing.Count > 0);
@@ -95,7 +105,7 @@ namespace ViuaBasic
         string instr = line.Value[0].ToUpper();
         if (instr.Equals("LABEL"))
         {
-          assembly.Add(".mark: " + line.Value[1]);
+          assembly.Add(".mark: label_" + line.Value[1]);
         }
         else if (instr.Equals("GOTO"))
         {
@@ -135,6 +145,27 @@ namespace ViuaBasic
         else if (instr.Equals("NEXT"))
         {
           if (!parse_next(line.Key, line.Value))
+          {
+            return false;
+          }
+        }
+        else if (instr.Equals("IF"))
+        {
+          if (!parse_if(line.Key, line.Value))
+          {
+            return false;
+          }
+        }
+        else if (instr.Equals("ELSE"))
+        {
+          if (!parse_else(line.Key, line.Value))
+          {
+            return false;
+          }
+        }
+        else if (instr.Equals("ENDIF"))
+        {
+          if (!parse_endif(line.Key, line.Value))
           {
             return false;
           }
@@ -288,6 +319,45 @@ namespace ViuaBasic
       return true;
     }
 
+    private bool parse_if_label(long line_num, List<string> parts)
+    {
+      if (parts.Count > 2)
+      {
+        List<string> cond_exp = Utl.take_until(1, "THEN", parts);
+        int idx = 1 + cond_exp.Count;
+        if (parts[idx].ToUpper().Equals("THEN"))
+        {
+          if (parts.Count > (idx + 1))
+          {
+            try
+            {
+              goto_lines.Add(Convert.ToInt64(parts[idx + 1]));
+            }
+            catch
+            {
+            }
+            if (parts.Count > (idx + 2))
+            {
+              if (parts[idx + 2].ToUpper().Equals("ELSE"))
+              {
+                if (parts.Count.Equals(idx + 4))
+                {
+                  try
+                  {
+                    goto_lines.Add(Convert.ToInt64(parts[idx + 3]));
+                  }
+                  catch
+                  {
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      return true;
+    }
+
     private bool parse_goto(long line_num, List<string> parts)
     {
       string label = parts[1];
@@ -302,7 +372,7 @@ namespace ViuaBasic
       }
       if (labels.Contains(label))
       {
-        assembly.Add("jump " + label);
+        assembly.Add("jump label_" + label);
       }
       else if (goto_lines.Contains(goto_line))
       {
@@ -411,7 +481,7 @@ namespace ViuaBasic
 
     private bool parse_float_exp(int float_reg, List<string> exp, bool show_err)
     {
-      List<string> rpn = Utl.exp_to_rpn(exp);
+      List<string> rpn = Utl.exp_to_math_rpn(exp);
       assembly.Add("vec %" + (float_reg + 1) + " local");
       int stack = 0;
       foreach (string arg in rpn)
@@ -474,38 +544,33 @@ namespace ViuaBasic
               if (arg.Equals("+"))
               {
                 assembly.Add("add %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local %" + (float_reg + 2) + " local");
-                stack++;
               }
               if (arg.Equals("-"))
               {
                 assembly.Add("sub %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local %" + (float_reg + 2) + " local");
-                stack++;
               }
               if (arg.Equals("*"))
               {
                 assembly.Add("mul %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local %" + (float_reg + 2) + " local");
-                stack++;
               }
               if (arg.Equals("/"))
               {
                 assembly.Add("div %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local %" + (float_reg + 2) + " local");
-                stack++;
               }
               if (arg.Equals("%"))
               {
                 assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local) (param %1 %" + (float_reg + 2) + " local)]");
                 assembly.Add("call %" + (float_reg + 2) + " local mod/2");
-                stack++;
                 math_modulo = true;
               }
               if (arg.Equals("^"))
               {
                 assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local) (param %1 %" + (float_reg + 2) + " local)]");
                 assembly.Add("call %" + (float_reg + 2) + " local pow/2");
-                stack++;
                 math_power = true;
               }
               assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
+              stack++;
             }
           }
           else
@@ -787,6 +852,244 @@ namespace ViuaBasic
       else
       {
         Console.WriteLine("?SYNTAX ERROR: EXPECTING FOR LOOP VARIABLE");
+        list(line_num, line_num);
+        return false;
+      }
+    }
+
+    private bool parse_if(long line_num, List<string> parts)
+    {
+      bool res = false;
+      int idx = 0;
+      string label_if = "";
+      string label_else = "";
+      if (parts.Count > 2)
+      {
+        List<string> cond_exp = Utl.take_until(1, "THEN", parts);
+        idx = 1 + cond_exp.Count;
+        if (parts[idx].ToUpper().Equals("THEN"))
+        {
+          if_idx++;
+          if (parts.Count > (idx + 1))
+          {
+            label_if = parts[idx + 1];
+            long goto_line = 0;
+            try
+            {
+              goto_line = Convert.ToInt64(label_if);
+              res = goto_lines.Contains(goto_line);
+              label_if = "goto_line_" + goto_line;
+            }
+            catch
+            {
+              res = labels.Contains(label_if);
+              label_if = "label_" + label_if;
+            }
+            if (res)
+            {
+              if (parts.Count > (idx + 2))
+              {
+                res = false;
+                if (parts[idx + 2].ToUpper().Equals("ELSE"))
+                {
+                  if (parts.Count.Equals(idx + 4))
+                  {
+                    label_else = parts[idx + 3];
+                    try
+                    {
+                      goto_line = Convert.ToInt64(label_else);
+                      res = goto_lines.Contains(goto_line);
+                      label_else = "goto_line_" + goto_line;
+                    }
+                    catch
+                    {
+                      res = labels.Contains(label_else);
+                      label_else = "label_" + label_else;
+                    }
+                  }
+                }
+              }
+            }
+            if (!res)
+            {
+              Console.WriteLine("?SYNTAX ERROR: EXPECTING LINE NUMBER OR LABEL");
+              list(line_num, line_num);
+              return false;
+            }
+          }
+          else
+          {
+            nested_ifs.Push(if_idx);
+            label_if = "if_" + if_idx;
+            label_else = "else_" + if_idx;
+            res = true;
+          }
+          if (res)
+          {
+            res = false;
+            if (parse_logic_exp(register, cond_exp, true))
+            {
+              string cond = "if %" + register + " local " + label_if;
+              if (label_else.Length > 0)
+              {
+                cond = cond + " " + label_else;
+              }
+              assembly.Add(cond);
+              if (nested_ifs.Peek().Equals(if_idx))
+              {
+                assembly.Add(".mark: " + label_if);
+              }
+            }
+          }
+        }
+      }
+      if (!res)
+      {
+        Console.WriteLine("?SYNTAX ERROR: ILLEGAL IF ARGUMENT");
+        list(line_num, line_num);
+      }
+      return res;
+    }
+
+    private bool parse_logic_exp(int cond_reg, List<string> exp, bool show_err)
+    {
+      List<string> rpn = Utl.exp_to_logic_rpn(exp);
+      assembly.Add("vec %" + (cond_reg + 1) + " local");
+      int stack = 0;
+      foreach (string arg in rpn)
+      {
+        if (arg.Equals("=") || arg.Equals(">") || arg.Equals("<") || arg.Equals(">=") || arg.Equals("<=") || arg.Equals("<>") || arg.Equals("OR") || arg.Equals("AND"))
+        {
+          if (stack < 2)
+          {
+            if (show_err)
+            {
+              Console.WriteLine("?SYNTAX ERROR: ILLEGAL LOGICAL EXPRESSION " + Utl.exp_to_str(exp));
+            }
+            return false;
+          }
+          else
+          {
+            assembly.Add("vpop %" + (cond_reg + 2) + " local %" + (cond_reg + 1) + " local");
+            stack--;
+            assembly.Add("vpop %" + (cond_reg + 3) + " local %" + (cond_reg + 1) + " local");
+            stack--;
+            if (arg.Equals("="))
+            {
+              assembly.Add("eq %" + (cond_reg + 2) + " local %" + (cond_reg + 3) + " local %" + (cond_reg + 2) + " local");
+            }
+            if (arg.Equals(">"))
+            {
+              assembly.Add("gt %" + (cond_reg + 2) + " local %" + (cond_reg + 3) + " local %" + (cond_reg + 2) + " local");
+            }
+            if (arg.Equals("<"))
+            {
+              assembly.Add("lt %" + (cond_reg + 2) + " local %" + (cond_reg + 3) + " local %" + (cond_reg + 2) + " local");
+            }
+            if (arg.Equals(">="))
+            {
+              assembly.Add("gte %" + (cond_reg + 2) + " local %" + (cond_reg + 3) + " local %" + (cond_reg + 2) + " local");
+            }
+            if (arg.Equals("<="))
+            {
+              assembly.Add("lte %" + (cond_reg + 2) + " local %" + (cond_reg + 3) + " local %" + (cond_reg + 2) + " local");
+            }
+            if (arg.Equals("<>"))
+            {
+              assembly.Add("eq %" + (cond_reg + 2) + " local %" + (cond_reg + 3) + " local %" + (cond_reg + 2) + " local");
+              assembly.Add("not %" + (cond_reg + 2) + " local %" + (cond_reg + 2) + " local");
+            }
+            if (arg.Equals("OR"))
+            {
+              assembly.Add("or %" + (cond_reg + 2) + " local %" + (cond_reg + 3) + " local %" + (cond_reg + 2) + " local");
+            }
+            if (arg.Equals("AND"))
+            {
+              assembly.Add("and %" + (cond_reg + 2) + " local %" + (cond_reg + 3) + " local %" + (cond_reg + 2) + " local");
+            }
+            assembly.Add("vpush %" + (cond_reg + 1) + " local %" + (cond_reg + 2) + " local");
+            stack++;
+          }
+        }
+        else if (arg.Equals("NOT"))
+        {
+          if (stack < 1)
+          {
+            if (show_err)
+            {
+              Console.WriteLine("?SYNTAX ERROR: ILLEGAL LOGICAL EXPRESSION " + Utl.exp_to_str(exp));
+            }
+            return false;
+          }
+          else
+          {
+            assembly.Add("vpop %" + (cond_reg + 2) + " local %" + (cond_reg + 1) + " local");
+            stack--;
+            assembly.Add("not %" + (cond_reg + 2) + " local %" + (cond_reg + 2) + " local");
+            assembly.Add("vpush %" + (cond_reg + 1) + " local %" + (cond_reg + 2) + " local");
+            stack++;
+          }
+        }
+        else
+        {
+          List<string> math_exp = new List<string>();
+          math_exp.Add(arg);
+          if (parse_float_exp(cond_reg + 2, math_exp, false))
+          {
+            assembly.Add("vpush %" + (cond_reg + 1) + " local %" + (cond_reg + 2) + " local");
+            stack++;
+          }
+          else
+          {
+            if (show_err)
+            {
+              Console.WriteLine("?SYNTAX ERROR: ILLEGAL ARGUMENT " + arg + " IN LOGICAL EXPRESSION " + Utl.exp_to_str(exp));
+            }
+            return false;
+          }
+        }
+      }
+      if (stack.Equals(1))
+      {
+        assembly.Add("vpop %" + cond_reg + " local %" + (cond_reg + 1) + " local");
+        return true;
+      }
+      else
+      {
+        if (show_err)
+        {
+          Console.WriteLine("?SYNTAX ERROR: ILLEGAL LOGICAL EXPRESSION " + Utl.exp_to_str(exp));
+        }
+        return false;
+      }
+    }
+
+    private bool parse_else(long line_num, List<string> parts)
+    {
+      if (nested_ifs.Count < 1)
+      {
+        assembly.Add("jump endif_" + nested_ifs.Peek());
+        assembly.Add(".mark: else_" + nested_ifs.Peek());
+        return true;
+      }
+      else
+      {
+        Console.WriteLine("?SYNTAX ERROR: UNMATCHED ELSE");
+        list(line_num, line_num);
+        return false;
+      }
+    }
+
+    private bool parse_endif(long line_num, List<string> parts)
+    {
+      if (nested_ifs.Count < 1)
+      {
+        assembly.Add(".mark: endif_" + nested_ifs.Pop());
+        return true;
+      }
+      else
+      {
+        Console.WriteLine("?SYNTAX ERROR: UNMATCHED ENDIF");
         list(line_num, line_num);
         return false;
       }
