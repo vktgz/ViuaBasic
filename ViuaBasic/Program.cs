@@ -8,22 +8,39 @@ namespace ViuaBasic
   {
     public static void Main(string[] args)
     {
-      if (args.Length > 0)
+      Console.WriteLine("ViuaBasic v0.1.0");
+      if (args.Length > 1)
       {
         if (File.Exists(args[0]))
         {
+          Console.WriteLine("reading: " + args[0]);
           List<string> srcBas = new List<string>();
           StreamReader sr = File.OpenText(args[0]);
-          string line = sr.ReadLine();
-          while (line != null)
+          string line_in = sr.ReadLine();
+          while (line_in != null)
           {
-            srcBas.Add(line);
-            line = sr.ReadLine();
+            srcBas.Add(line_in);
+            line_in = sr.ReadLine();
           }
           BasicCompiler compiler = new BasicCompiler();
           if (compiler.load(srcBas))
           {
             compiler.compile();
+            if (File.Exists(args[1]))
+            {
+              Console.WriteLine("overwriting: " + args[1]);
+            }
+            else
+            {
+              Console.WriteLine("writing: " + args[1]);
+            }
+            StreamWriter sw = new StreamWriter(args[1]);
+            foreach (string line_out in compiler.output())
+            {
+              sw.WriteLine(line_out);
+            }
+            sw.Close();
+            Console.WriteLine("compilation complete");
           }
         }
         else
@@ -33,8 +50,7 @@ namespace ViuaBasic
       }
       else
       {
-        Console.WriteLine("ViuaBasic v0.1.0");
-        Console.WriteLine("usage: viuabasic <src_file>");
+        Console.WriteLine("usage: ViuaBasic <input_file.bas> <output_file.asm>");
       }
     }
   }

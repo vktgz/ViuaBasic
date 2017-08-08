@@ -135,6 +135,16 @@ namespace ViuaBasic
       return parts;
     }
 
+    public static List<string> list_split_separator(List<string> lines, char sep, bool trim, bool keep_sep)
+    {
+      List<string> res = new List<string>();
+      foreach (string line in lines)
+      {
+        res.AddRange(split_separator(line, sep, trim, keep_sep));
+      }
+      return res;
+    }
+
     public static bool is_quoted(string arg)
     {
       return (arg.Length > 1) && (arg.StartsWith("\"")) && (arg.EndsWith("\""));
@@ -286,47 +296,15 @@ namespace ViuaBasic
 
     public static List<string> exp_to_math(List<string> exp)
     {
-      List<string> tmp1 = new List<string>();
-      foreach (string elem in exp)
-      {
-        tmp1.AddRange(split_separator(elem, '(', true, true));
-      }
-      List<string> tmp2 = new List<string>();
-      foreach (string elem in tmp1)
-      {
-        tmp2.AddRange(split_separator(elem, ')', true, true));
-      }
-      tmp1.Clear();
-      foreach (string elem in tmp2)
-      {
-        tmp1.AddRange(split_separator(elem, '+', true, true));
-      }
-      tmp2.Clear();
-      foreach (string elem in tmp1)
-      {
-        tmp2.AddRange(split_separator(elem, '-', true, true));
-      }
-      tmp1.Clear();
-      foreach (string elem in tmp2)
-      {
-        tmp1.AddRange(split_separator(elem, '*', true, true));
-      }
-      tmp2.Clear();
-      foreach (string elem in tmp1)
-      {
-        tmp2.AddRange(split_separator(elem, '/', true, true));
-      }
-      tmp1.Clear();
-      foreach (string elem in tmp2)
-      {
-        tmp1.AddRange(split_separator(elem, '%', true, true));
-      }
-      tmp2.Clear();
-      foreach (string elem in tmp1)
-      {
-        tmp2.AddRange(split_separator(elem, '^', true, true));
-      }
-      return tmp2;
+      List<string> tmp = list_split_separator(exp, '(', true, true);
+      tmp = list_split_separator(tmp, ')', true, true);
+      tmp = list_split_separator(tmp, '+', true, true);
+      tmp = list_split_separator(tmp, '-', true, true);
+      tmp = list_split_separator(tmp, '*', true, true);
+      tmp = list_split_separator(tmp, '/', true, true);
+      tmp = list_split_separator(tmp, '%', true, true);
+      tmp = list_split_separator(tmp, '^', true, true);
+      return tmp;
     }
 
     public static List<string> exp_to_logic_rpn(List<string> exp)
@@ -433,32 +411,12 @@ namespace ViuaBasic
 
     public static List<string> exp_to_logic(List<string> exp)
     {
-      List<string> tmp1 = new List<string>();
-      foreach (string elem in exp)
-      {
-        tmp1.AddRange(split_separator(elem, '(', true, true));
-      }
+      List<string> tmp1 = list_split_separator(exp, '(', true, true);
+      tmp1 = list_split_separator(tmp1, ')', true, true);
+      tmp1 = list_split_separator(tmp1, '<', true, true);
+      tmp1 = list_split_separator(tmp1, '>', true, true);
+      tmp1 = list_split_separator(tmp1, '=', true, true);
       List<string> tmp2 = new List<string>();
-      foreach (string elem in tmp1)
-      {
-        tmp2.AddRange(split_separator(elem, ')', true, true));
-      }
-      tmp1.Clear();
-      foreach (string elem in tmp2)
-      {
-        tmp1.AddRange(split_separator(elem, '<', true, true));
-      }
-      tmp2.Clear();
-      foreach (string elem in tmp1)
-      {
-        tmp2.AddRange(split_separator(elem, '>', true, true));
-      }
-      tmp1.Clear();
-      foreach (string elem in tmp2)
-      {
-        tmp1.AddRange(split_separator(elem, '=', true, true));
-      }
-      tmp2.Clear();
       int idx = 0;
       while (idx < tmp1.Count)
       {

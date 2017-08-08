@@ -12,7 +12,7 @@ namespace ViuaBasic
       public bool integer;
     }
 
-    private Dictionary<long, List<string>> listing;
+    private SortedDictionary<long, List<string>> listing;
     private List<string> labels, assembly;
     private List<long> goto_lines;
     private Variables vars;
@@ -23,7 +23,7 @@ namespace ViuaBasic
 
     public BasicCompiler()
     {
-      listing = new Dictionary<long, List<string>>();
+      listing = new SortedDictionary<long, List<string>>();
       labels = new List<string>();
       goto_lines = new List<long>();
       assembly = new List<string>();
@@ -96,6 +96,7 @@ namespace ViuaBasic
 
     public bool compile()
     {
+      assembly.Add(".function: main/0");
       foreach (KeyValuePair<long, List<string>> line in listing)
       {
         if (goto_lines.Contains(line.Key))
@@ -177,6 +178,9 @@ namespace ViuaBasic
           return false;
         }
       }
+      assembly.Add("izero %0 local");
+      assembly.Add("return");
+      assembly.Add(".end");
       if (math_modulo)
       {
         // TODO: modulo function
@@ -187,9 +191,25 @@ namespace ViuaBasic
       }
       if (math_round)
       {
-        // TODO: round function
+        assembly.Add(".function: round/1");
+        assembly.Add("arg %1 local %0");
+        assembly.Add("if (lt %3 local %1 local (fstore %2 local 0)) round_negative");
+        assembly.Add("fstore %2 local 0.5");
+        assembly.Add("jump math_round");
+        assembly.Add(".mark: round_negative");
+        assembly.Add("fstore %2 local -0.5");
+        assembly.Add(".mark: math_round");
+        assembly.Add("add %1 local %1 local %2 local");
+        assembly.Add("ftoi %0 local %1 local");
+        assembly.Add("return");
+        assembly.Add(".end");
       }
       return true;
+    }
+
+    public List<string> output()
+    {
+      return assembly;
     }
 
     private void list(long line_from, long line_to)
@@ -410,13 +430,13 @@ namespace ViuaBasic
 
     private bool parse_print_list(int plist_reg, List<string> exp)
     {
-      List<string> plist = Utl.split_separator(Utl.exp_to_str(exp), ',', true, true);
+      List<string> plist = Utl.list_split_separator(exp, ',', true, true);
       bool result = false;
+      bool empty = true;
       if (!(plist.Count % 2).Equals(0))
       {
         result = true;
         int idx = 0;
-        assembly.Add("text %" + plist_reg + " local \"\"");
         while (idx < plist.Count)
         {
           if (idx > 0)
@@ -429,23 +449,47 @@ namespace ViuaBasic
           }
           if (vars.exists(plist[idx].ToUpper()))
           {
-            assembly.Add("text %" + (plist_reg + 1) + " local %" + vars.get_register(plist[idx].ToUpper()) + " local");
-            assembly.Add("textconcat %" + plist_reg + " local %" + plist_reg + " local %" + (plist_reg + 1) + " local");
+            if (empty)
+            {
+              assembly.Add("text %" + plist_reg + " local %" + vars.get_register(plist[idx].ToUpper()) + " local");
+              empty = false;
+            }
+            else
+            {
+              assembly.Add("text %" + (plist_reg + 1) + " local %" + vars.get_register(plist[idx].ToUpper()) + " local");
+              assembly.Add("textconcat %" + plist_reg + " local %" + plist_reg + " local %" + (plist_reg + 1) + " local");
+            }
           }
           else
           {
             int math_reg = plist_reg + 1;
             List<string> math_exp = new List<string>();
             math_exp.Add(plist[idx]);
-            if (parse_float_exp(math_reg, math_exp, false))
+            if (Utl.is_quoted(plist[idx]))
             {
-              assembly.Add("text %" + math_reg + " local %" + math_reg + " local");
-              assembly.Add("textconcat %" + plist_reg + " local %" + plist_reg + " local %" + math_reg + " local");
+              if (empty)
+              {
+                assembly.Add("text %" + plist_reg + " local " + plist[idx]);
+                empty = false;
+              }
+              else
+              {
+                assembly.Add("text %" + (plist_reg + 1) + " local " + plist[idx]);
+                assembly.Add("textconcat %" + plist_reg + " local %" + plist_reg + " local %" + (plist_reg + 1) + " local");
+              }
             }
-            else if (Utl.is_quoted(plist[idx]))
+            else if (parse_float_exp(math_reg, math_exp, false))
             {
-              assembly.Add("text %" + (plist_reg + 1) + " local " + plist[idx]);
-              assembly.Add("textconcat %" + plist_reg + " local %" + plist_reg + " local %" + (plist_reg + 1) + " local");
+              if (empty)
+              {
+                assembly.Add("text %" + plist_reg + " local %" + math_reg + " local");
+                empty = false;
+              }
+              else
+              {
+                assembly.Add("text %" + math_reg + " local %" + math_reg + " local");
+                assembly.Add("textconcat %" + plist_reg + " local %" + plist_reg + " local %" + math_reg + " local");
+              }
             }
             else
             {
@@ -468,8 +512,7 @@ namespace ViuaBasic
       if (parse_float_exp(int_reg + 1, exp, show_err))
       {
         assembly.Add("frame ^[(param %0 %" + (int_reg + 1) + " local)]");
-        assembly.Add("call %" + (int_reg + 1) + " local round/1");
-        assembly.Add("ftoi %" + int_reg + " local %" + (int_reg + 1) + " local");
+        assembly.Add("call %" + int_reg + " local round/1");
         math_round = true;
         return true;
       }
@@ -601,6 +644,8 @@ namespace ViuaBasic
     private bool parse_let(long line_num, List<string> parts)
     {
       bool res = false;
+      parts = Utl.list_split_separator(parts, ':', true, true);
+      parts = Utl.list_split_separator(parts, '=', true, true);
       if (parts.Count > 3)
       {
         string var_name = parts[1].ToUpper();
@@ -666,7 +711,14 @@ namespace ViuaBasic
             List<string> exp = parts.GetRange(idx, parts.Count - idx);
             if (parse_integer_exp(register, exp, true))
             {
-              vars.set_var(var_name, var_type, register++);
+              if (vars.exists(var_name))
+              {
+                assembly.Add("move %" + vars.get_register(var_name) + " local %" + register + " local");
+              }
+              else
+              {
+                vars.set_var(var_name, var_type, register++);
+              }
               res = true;
             }
           }
@@ -675,7 +727,14 @@ namespace ViuaBasic
             List<string> exp = parts.GetRange(idx, parts.Count - idx);
             if (parse_float_exp(register, exp, true))
             {
-              vars.set_var(var_name, var_type, register++);
+              if (vars.exists(var_name))
+              {
+                assembly.Add("move %" + vars.get_register(var_name) + " local %" + register + " local");
+              }
+              else
+              {
+                vars.set_var(var_name, var_type, register++);
+              }
               res = true;
             }
           }
@@ -684,7 +743,14 @@ namespace ViuaBasic
             List<string> exp = parts.GetRange(idx, parts.Count - idx);
             if (parse_print_list(register, exp))
             {
-              vars.set_var(var_name, var_type, register++);
+              if (vars.exists(var_name))
+              {
+                assembly.Add("move %" + vars.get_register(var_name) + " local %" + register + " local");
+              }
+              else
+              {
+                vars.set_var(var_name, var_type, register++);
+              }
               res = true;
             }
           }
@@ -935,10 +1001,14 @@ namespace ViuaBasic
                 cond = cond + " " + label_else;
               }
               assembly.Add(cond);
-              if (nested_ifs.Peek().Equals(if_idx))
+              if (nested_ifs.Count > 0)
               {
-                assembly.Add(".mark: " + label_if);
+                if (nested_ifs.Peek().Equals(if_idx))
+                {
+                  assembly.Add(".mark: " + label_if);
+                }
               }
+              res = true;
             }
           }
         }
