@@ -1,2 +1,2 @@
 # ViuaBasic
-## Retro style BASIC dialect for [Viua Virtual Machine](viuavm.org)
+## Retro style BASIC dialect for [Viua Virtual Machine](https://viuavm.org)
