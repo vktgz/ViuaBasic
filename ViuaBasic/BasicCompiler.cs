@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Threading;
 
 namespace ViuaBasic
 {
@@ -35,6 +37,9 @@ namespace ViuaBasic
       math_modulo = false;
       math_power = false;
       math_round = false;
+      CultureInfo format = CultureInfo.CreateSpecificCulture("en-US");
+      format.NumberFormat.NumberDecimalSeparator = ".";
+      Thread.CurrentThread.CurrentCulture = format;
     }
 
     public bool load(List<string> src)
@@ -183,7 +188,37 @@ namespace ViuaBasic
       assembly.Add(".end");
       if (math_modulo)
       {
-        // TODO: modulo function
+        assembly.Add(".function: mod/2");
+        assembly.Add("arg %2 local %1");
+        assembly.Add("arg %3 local %0");
+        assembly.Add("if (not (eq %5 local %2 local (fstore %4 local 0))) mod_not_zero");
+        assembly.Add("throw (strstore %1 local \"modulo by zero\")");
+        assembly.Add(".mark: mod_not_zero");
+        assembly.Add("if (lt %5 local %2 local (fstore %4 local 0)) mod_negative");
+        assembly.Add("fstore %6 local 0");
+        assembly.Add("copy %7 local %2 local");
+        assembly.Add("jump mod_prepare");
+        assembly.Add(".mark: mod_negative");
+        assembly.Add("copy %6 local %2 local");
+        assembly.Add("fstore %7 local 0");
+        assembly.Add(".mark: mod_prepare");
+        assembly.Add("copy %8 local %2 local");
+        assembly.Add("if (lt %5 local %3 local (fstore %4 local 0)) mod_check_step");
+        assembly.Add("if (gt %5 local %8 local (fstore %4 local 0)) mod_negate_step mod_check");
+        assembly.Add(".mark: mod_check_step");
+        assembly.Add("if (gt %5 local %8 local (fstore %4 local 0)) mod_check");
+        assembly.Add(".mark: mod_negate_step");
+        assembly.Add("mul %8 local %8 local (fstore %4 local -1)");
+        assembly.Add(".mark: mod_check");
+        assembly.Add("if (not (gte %5 local %3 local %6 local)) mod_add");
+        assembly.Add("if (lte %5 local %3 local %7 local) mod_done");
+        assembly.Add(".mark: mod_add");
+        assembly.Add("add %3 local %3 local %8 local");
+        assembly.Add("jump mod_check");
+        assembly.Add(".mark: mod_done");
+        assembly.Add("copy %0 local %3 local");
+        assembly.Add("return");
+        assembly.Add(".end");
       }
       if (math_power)
       {

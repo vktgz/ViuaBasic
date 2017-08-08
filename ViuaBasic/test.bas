@@ -27,3 +27,13 @@
 70   print "a<=3,i<=8"
 71  endif
 72 endif
+
+80 print "7 mod 4 = 3 : ",7%4
+81 print "-7 mod 4 = 1 : ",-7%4
+82 print "7 mod -4 = -1 : ",7%-4
+83 print "-7 mod -4 = -3 : ",-7%-4
+84 print "-7 mod 4.2 = 1.4 : ",-7%4.2
+85 print "-7.6 mod 4 = 0.4 : ",-7.6%4
+86 print "-7.6 mod 4.2 = 0.8 : ",-7.6%4.2
+
+2 print 2.2*3.3
