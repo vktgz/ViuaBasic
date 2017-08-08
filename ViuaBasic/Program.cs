@@ -26,22 +26,28 @@ namespace ViuaBasic
           BasicCompiler compiler = new BasicCompiler();
           if (compiler.load(srcBas))
           {
-            compiler.compile();
-            if (File.Exists(args[1]))
+            if (compiler.compile())
             {
-              Console.WriteLine("overwriting: " + args[1]);
+              if (File.Exists(args[1]))
+              {
+                Console.WriteLine("overwriting: " + args[1]);
+              }
+              else
+              {
+                Console.WriteLine("writing: " + args[1]);
+              }
+              StreamWriter sw = new StreamWriter(args[1]);
+              foreach (string line_out in compiler.output())
+              {
+                sw.WriteLine(line_out);
+              }
+              sw.Close();
+              Console.WriteLine("compilation complete");
             }
             else
             {
-              Console.WriteLine("writing: " + args[1]);
+              Console.WriteLine("compilation incomplete");
             }
-            StreamWriter sw = new StreamWriter(args[1]);
-            foreach (string line_out in compiler.output())
-            {
-              sw.WriteLine(line_out);
-            }
-            sw.Close();
-            Console.WriteLine("compilation complete");
           }
         }
         else

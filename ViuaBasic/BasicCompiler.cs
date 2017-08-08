@@ -767,6 +767,7 @@ namespace ViuaBasic
     private bool parse_for(long line_num, List<string> parts)
     {
       bool res = false;
+      parts = Utl.list_split_separator(parts, '=', true, true);
       ForLoop for_loop = new ForLoop();
       for_loop.line_num = line_num;
       bool stop = false;
@@ -1136,7 +1137,7 @@ namespace ViuaBasic
 
     private bool parse_else(long line_num, List<string> parts)
     {
-      if (nested_ifs.Count < 1)
+      if (nested_ifs.Count > 0)
       {
         assembly.Add("jump endif_" + nested_ifs.Peek());
         assembly.Add(".mark: else_" + nested_ifs.Peek());
@@ -1152,7 +1153,7 @@ namespace ViuaBasic
 
     private bool parse_endif(long line_num, List<string> parts)
     {
-      if (nested_ifs.Count < 1)
+      if (nested_ifs.Count > 0)
       {
         assembly.Add(".mark: endif_" + nested_ifs.Pop());
         return true;
