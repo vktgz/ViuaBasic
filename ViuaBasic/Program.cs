@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace ViuaBasic
 {
@@ -8,7 +9,7 @@ namespace ViuaBasic
   {
     public static void Main(string[] args)
     {
-      Console.WriteLine("ViuaBasic v0.1.0");
+      Console.WriteLine(Assembly.GetExecutingAssembly().GetName().Name + " v" + Assembly.GetExecutingAssembly().GetName().Version);
       if (args.Length > 1)
       {
         if (File.Exists(args[0]))
@@ -50,7 +51,7 @@ namespace ViuaBasic
       }
       else
       {
-        Console.WriteLine("usage: ViuaBasic <input_file.bas> <output_file.asm>");
+        Console.WriteLine("usage: " + Assembly.GetExecutingAssembly().GetName().Name + " <input_file.bas> <output_file.asm>");
       }
     }
   }
