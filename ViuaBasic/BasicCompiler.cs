@@ -21,7 +21,7 @@ namespace ViuaBasic
     private Dictionary<string, ForLoop> for_loops;
     private Stack<int> nested_ifs;
     private int register, if_idx;
-    private bool math_modulo, math_power, math_round;
+    private bool math_modulo, math_power, math_round, math_exponent, math_logarithm, math_absolute;
 
     public BasicCompiler()
     {
@@ -37,6 +37,9 @@ namespace ViuaBasic
       math_modulo = false;
       math_power = false;
       math_round = false;
+      math_exponent = false;
+      math_logarithm = false;
+      math_absolute = false;
       CultureInfo format = CultureInfo.CreateSpecificCulture("en-US");
       format.NumberFormat.NumberDecimalSeparator = ".";
       Thread.CurrentThread.CurrentCulture = format;
@@ -186,7 +189,7 @@ namespace ViuaBasic
       assembly.Add("izero %0 local");
       assembly.Add("return");
       assembly.Add(".end");
-      if (math_modulo)
+      if (math_modulo || math_power)
       {
         assembly.Add(".function: mod/2");
         assembly.Add("arg %2 local %1");
@@ -222,7 +225,98 @@ namespace ViuaBasic
       }
       if (math_power)
       {
-        // TODO: power function
+        assembly.Add(".function: pow/2");
+        assembly.Add("arg %1 local %0");
+        assembly.Add("arg %2 local %1");
+        assembly.Add("if (not (eq %3 local %2 local (fstore %4 local 1))) pow_pow_zero");
+        assembly.Add("copy %0 local %1 local");
+        assembly.Add("jump pow_done");
+        assembly.Add(".mark: pow_pow_zero");
+        assembly.Add("if (not (eq %3 local %2 local (fstore %4 local 0))) pow_pow_minus1");
+        assembly.Add("if (not (eq %3 local %1 local (fstore %4 local 0))) pow_pow_zero_base_not_zero");
+        assembly.Add("throw (strstore %5 local \"0 ^ 0 is undefined\")");
+        assembly.Add(".mark: pow_pow_zero_base_not_zero");
+        assembly.Add("fstore %0 local 1");
+        assembly.Add("jump pow_done");
+        assembly.Add(".mark: pow_pow_minus1");
+        assembly.Add("if (not (eq %3 local %2 local (fstore %4 local -1))) pow_base_plus1");
+        assembly.Add("if (not (eq %3 local %1 local (fstore %4 local 0))) pow_pow_minus1_base_not_zero");
+        assembly.Add("throw (strstore %5 local \"divide by zero\")");
+        assembly.Add(".mark: pow_pow_minus1_base_not_zero");
+        assembly.Add("div %0 local (fstore %4 local 1) %1 local");
+        assembly.Add("jump pow_done");
+        assembly.Add(".mark: pow_base_plus1");
+        assembly.Add("if (not (eq %3 local %1 local (fstore %4 local 1))) pow_base_minus1");
+        assembly.Add("fstore %0 local 1");
+        assembly.Add("jump pow_done");
+        assembly.Add(".mark: pow_base_minus1");
+        assembly.Add("if (not (eq %3 local %1 local (fstore %4 local -1))) pow_pow_int");
+        assembly.Add("frame ^[(param %0 %2 local)]");
+        assembly.Add("call %6 local abs/1");
+        assembly.Add("frame ^[(param %0 %6 local) (param %1 (fstore %4 local 2))]");
+        assembly.Add("call %6 local mod/2");
+        assembly.Add("if (eq %3 local %6 local (fstore %4 local 0)) pow_base_minus1_positive");
+        assembly.Add("fstore %0 local -1");
+        assembly.Add("jump pow_done");
+        assembly.Add(".mark: pow_base_minus1_positive");
+        assembly.Add("fstore %0 local 1");
+        assembly.Add("jump pow_done");
+        assembly.Add(".mark: pow_pow_int");
+        assembly.Add("if (not (eq %3 local %2 local (ftoi %4 local %2 local))) pow_other");
+        assembly.Add("if (lte %3 local %2 local (fstore %4 local 0)) pow_pow_int_negative");
+        assembly.Add("frame ^[(param %0 %1 local) (param %1 %2 local)]");
+        assembly.Add("call %0 local simple_pow/2");
+        assembly.Add("jump pow_done");
+        assembly.Add(".mark: pow_pow_int_negative");
+        assembly.Add("if (not (eq %3 local %1 local (fstore %4 local 0))) pow_pow_int_negative_base_not_zero");
+        assembly.Add("throw (strstore %5 local \"divide by zero\")");
+        assembly.Add(".mark: pow_pow_int_negative_base_not_zero");
+        assembly.Add("mul %6 local %2 local (fstore %4 local -1)");
+        assembly.Add("frame ^[(param %0 %1 local) (param %1 %6 local)]");
+        assembly.Add("call %6 local simple_pow/2");
+        assembly.Add("div %0 local (fstore %4 local 1) %6 local");
+        assembly.Add("jump pow_done");
+        assembly.Add(".mark: pow_other");
+        assembly.Add("if (lt %3 local %1 local (fstore %4 local 0)) pow_other_base_negative");
+        assembly.Add("frame ^[(param %0 %1 local) (param %1 %2 local)]");
+        assembly.Add("call %0 local complicated_pow/2");
+        assembly.Add("jump pow_done");
+        assembly.Add(".mark: pow_other_base_negative");
+        assembly.Add("throw (strstore %5 local \"result is complex number\")");
+        assembly.Add(".mark: pow_done");
+        assembly.Add("return");
+        assembly.Add(".end");
+        assembly.Add(".function: simple_pow/2");
+        assembly.Add("arg %1 local %0");
+        assembly.Add("arg %2 local %1");
+        assembly.Add("fstore %0 local 1");
+        assembly.Add("istore %4 local 1");
+        assembly.Add(".mark: spow_loop");
+        assembly.Add("mul %0 local %0 local %1 local");
+        assembly.Add("iinc %4 local");
+        assembly.Add("if (lte %3 local %4 local %2 local) spow_loop");
+        assembly.Add("return");
+        assembly.Add(".end");
+        assembly.Add(".function: complicated_pow/2");
+        assembly.Add("arg %1 local %0");
+        assembly.Add("arg %2 local %1");
+        assembly.Add("frame ^[(param %0 %2 local)]");
+        assembly.Add("call %3 local abs/1");
+        assembly.Add("ftoi %4 local %3 local");
+        assembly.Add("sub %5 local %3 local %4 local");
+        assembly.Add("frame ^[(param %0 %1 local) (param %1 %4 local)]");
+        assembly.Add("call %0 local simple_pow/2");
+        assembly.Add("frame ^[(param %0 %1 local)]");
+        assembly.Add("call %6 local log/1");
+        assembly.Add("mul %6 local %5 local %6 local");
+        assembly.Add("frame ^[(param %0 %6 local)]");
+        assembly.Add("call %6 local exp/1");
+        assembly.Add("mul %0 local %0 local %6 local");
+        assembly.Add("if (gt %7 local %2 local (fstore %8 local 0)) cpow_done");
+        assembly.Add("div %0 local (fstore %8 local 1) %0 local");
+        assembly.Add(".mark: cpow_done");
+        assembly.Add("return");
+        assembly.Add(".end");
       }
       if (math_round)
       {
@@ -236,6 +330,85 @@ namespace ViuaBasic
         assembly.Add(".mark: math_round");
         assembly.Add("add %1 local %1 local %2 local");
         assembly.Add("ftoi %0 local %1 local");
+        assembly.Add("return");
+        assembly.Add(".end");
+      }
+      if (math_exponent || math_power)
+      {
+        assembly.Add(".function: exp/1");
+        assembly.Add("arg %1 local %0");
+        assembly.Add("fstore %0 local 1");
+        assembly.Add("copy %2 local %1 local");
+        assembly.Add("fstore %3 local 1");
+        assembly.Add("istore %4 local 1");
+        assembly.Add("fstore %7 local 0.00000000000000000000000000000001");
+        assembly.Add("frame ^[(param %0 %2 local)]");
+        assembly.Add("call %8 local abs/1");
+        assembly.Add(".mark: exp_loop");
+        assembly.Add("div %5 local %2 local %3 local");
+        assembly.Add("div %9 local %8 local %3 local");
+        assembly.Add("add %0 local %0 local %5 local");
+        assembly.Add("mul %2 local %2 local %1 local");
+        assembly.Add("iinc %4 local");
+        assembly.Add("mul %3 local %3 local %4 local");
+        assembly.Add("if (gte %6 local %9 local %7 local) exp_loop");
+        assembly.Add("return");
+        assembly.Add(".end");
+      }
+      if (math_logarithm || math_power)
+      {
+        assembly.Add(".function: log/1");
+        assembly.Add("arg %1 local %0");
+        assembly.Add("if (gt %3 local %1 local (fstore %2 local 0)) log_positive");
+        assembly.Add("throw (strstore %4 local \"logarithm argument must be greater than zero\")");
+        assembly.Add(".mark: log_positive");
+        assembly.Add("if (not (isnull %3 local %1 global)) log_begin");
+        assembly.Add("frame ^[(param %0 (fstore %2 local 1.9))]");
+        assembly.Add("call %1 global series_log/1");
+        assembly.Add(".mark: log_begin");
+        assembly.Add("fstore %0 local 0");
+        assembly.Add("if (lt %3 local %1 local (fstore %2 local 2)) log_rest");
+        assembly.Add("istore %4 local 0");
+        assembly.Add("fstore %5 local 1.9");
+        assembly.Add("fstore %6 local 2");
+        assembly.Add(".mark: log_divide");
+        assembly.Add("div %1 local %1 local %5 local");
+        assembly.Add("iinc %4 local");
+        assembly.Add("if (gte %3 local %1 local %6 local) log_divide");
+        assembly.Add("mul %0 local %1 global %4 local");
+        assembly.Add(".mark: log_rest");
+        assembly.Add("frame ^[(param %0 %1 local)]");
+        assembly.Add("call %2 local series_log/1");
+        assembly.Add("add %0 local %0 local %2 local");
+        assembly.Add("return");
+        assembly.Add(".end");
+        assembly.Add(".function: series_log/1");
+        assembly.Add("arg %1 local %0");
+        assembly.Add("sub %1 local %1 local (fstore %2 local 1)");
+        assembly.Add("copy %2 local %1 local");
+        assembly.Add("fstore %3 local 1");
+        assembly.Add("fstore %0 local 0");
+        assembly.Add("istore %4 local 1");
+        assembly.Add("fstore %5 local 0.00000000000000000000000000000001");
+        assembly.Add(".mark: series_log_loop");
+        assembly.Add("div %6 local %2 local %4 local");
+        assembly.Add("copy %8 local %6 local");
+        assembly.Add("mul %6 local %3 local %6 local");
+        assembly.Add("add %0 local %0 local %6 local");
+        assembly.Add("mul %2 local %2 local %1 local");
+        assembly.Add("mul %3 local %3 local (fstore %6 local -1)");
+        assembly.Add("iinc %4 local");
+        assembly.Add("if (gte %7 local %8 local %5 local) series_log_loop");
+        assembly.Add("return");
+        assembly.Add(".end");
+      }
+      if (math_absolute || math_power || math_exponent)
+      {
+        assembly.Add(".function: abs/1");
+        assembly.Add("arg %0 local %0");
+        assembly.Add("if (gte %1 local %0 local (fstore %2 local 0)) abs_done");
+        assembly.Add("mul %0 local %0 local (fstore %2 local -1)");
+        assembly.Add(".mark: abs_done");
         assembly.Add("return");
         assembly.Add(".end");
       }
