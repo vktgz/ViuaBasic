@@ -199,6 +199,14 @@ namespace ViuaBasic
             string elem = stack.Pop();
             if (elem.Equals("("))
             {
+              if (stack.Count > 0)
+              {
+                elem = stack.Peek();
+                if (elem.Equals("ABS") || elem.Equals("EXP") || elem.Equals("LOG"))
+                {
+                  rpn.Add(stack.Pop());
+                }
+              }
               break;
             }
             else
@@ -271,6 +279,12 @@ namespace ViuaBasic
           }
           stack.Push(arg);
           unary = true;
+          negate = false;
+        }
+        else if (arg.ToUpper().Equals("ABS") || arg.ToUpper().Equals("EXP") || arg.ToUpper().Equals("LOG"))
+        {
+          stack.Push(arg.ToUpper());
+          unary = false;
           negate = false;
         }
         else

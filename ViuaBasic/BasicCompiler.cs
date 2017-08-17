@@ -638,7 +638,7 @@ namespace ViuaBasic
 
     private bool parse_print_list(int plist_reg, List<string> exp)
     {
-      List<string> plist = Utl.list_split_separator(exp, ',', true, true);
+      List<string> plist = Utl.split_separator(Utl.exp_to_str(exp), ',', true, true);
       bool result = false;
       bool empty = true;
       if (!(plist.Count % 2).Equals(0))
@@ -819,6 +819,42 @@ namespace ViuaBasic
                 assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local) (param %1 %" + (float_reg + 2) + " local)]");
                 assembly.Add("call %" + (float_reg + 2) + " local pow/2");
                 math_power = true;
+              }
+              assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
+              stack++;
+            }
+          }
+          else if (arg.Equals("ABS") || arg.Equals("EXP") || arg.Equals("LOG"))
+          {
+            if (stack < 1)
+            {
+              if (show_err)
+              {
+                Console.WriteLine("?SYNTAX ERROR: ILLEGAL ARITHMETIC EXPRESSION " + Utl.exp_to_str(exp));
+              }
+              return false;
+            }
+            else
+            {
+              assembly.Add("vpop %" + (float_reg + 2) + " local %" + (float_reg + 1) + " local");
+              stack--;
+              if (arg.Equals("ABS"))
+              {
+                assembly.Add("frame ^[(param %0 %" + (float_reg + 2) + " local)]");
+                assembly.Add("call %" + (float_reg + 2) + " local abs/1");
+                math_absolute = true;
+              }
+              if (arg.Equals("EXP"))
+              {
+                assembly.Add("frame ^[(param %0 %" + (float_reg + 2) + " local)]");
+                assembly.Add("call %" + (float_reg + 2) + " local exp/1");
+                math_exponent = true;
+              }
+              if (arg.Equals("LOG"))
+              {
+                assembly.Add("frame ^[(param %0 %" + (float_reg + 2) + " local)]");
+                assembly.Add("call %" + (float_reg + 2) + " local log/1");
+                math_logarithm = true;
               }
               assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
               stack++;
