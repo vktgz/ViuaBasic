@@ -65,7 +65,7 @@ function showSyntax(syntaxID)
 <p>Input is a UTF-8 encoded BASIC source, output is a UTF-8 encoded ViuaVM assembly.</p>
 <p>BASIC syntax: single instruction per line. Line numbers are optional, when ommited line numbers from source file are used.
 All instructions, variable names and keywords are case insensitive. String literals are case sensitive, double quote bounded, double quotes inside strings are escaped by repeating them.
-Instruction arguments are comma delimited. Dot is used as a decimal separator. Variables have defined types that can not be changed.
+Instruction arguments are comma delimited. Dot is used as a decimal separator. Variables have defined types that cannot be changed.
 All math expressions are evaluated as floating point, and when result is stored in integer variable then it is rounded half up.
 <br />For example, two equivalent hello worlds:
 <table><tr><td>
@@ -102,7 +102,7 @@ where variable name must be unique single word, case insensitive. First assignme
 <br />INTEGER - 64-bit integer
 <br />FLOAT - 64-bit floating point
 <br />STRING - UTF-8 encoded string
-<br />Reassignments may ommit type definition because it can not be changed. Variable value for integers and floats is a math expression, for strings it is a print list.</div>
+<br />Reassignments may ommit type definition because it cannot be changed. Variable value for integers and floats is a math expression, for strings it is a print list.</div>
 <p><b>FOR</b> begins loop.<button onclick="showSyntax('syntax_for')">syntax</button></p>
 <div class="syntax" id="syntax_for"><pre>FOR &lt;variable_name&gt; = &lt;from_expression&gt; TO &lt;to_expression&gt; [STEP &lt;step_expression&gt;]</pre>
 where variable must be new or existing integer or floating point. If variable exists it will be used and its value set to from expression.
