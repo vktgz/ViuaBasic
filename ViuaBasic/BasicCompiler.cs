@@ -114,7 +114,7 @@ namespace ViuaBasic
         string instr = line.Value[0].ToUpper();
         if (instr.Equals("LABEL"))
         {
-          assembly.Add(".mark: label_" + line.Value[1]);
+          assembly.Add(".mark: label_" + line.Value[1].ToLower());
         }
         else if (instr.Equals("GOTO"))
         {
@@ -519,13 +519,13 @@ namespace ViuaBasic
         list(line_num, line_num);
         return false;
       }
-      if (labels.Contains(parts[1]))
+      if (labels.Contains(parts[1].ToLower()))
       {
         Console.WriteLine("?SYNTAX ERROR: DUPLICATE LABEL");
         list(line_num, line_num);
         return false;
       }
-      labels.Add(parts[1]);
+      labels.Add(parts[1].ToLower());
       return true;
     }
 
@@ -588,7 +588,7 @@ namespace ViuaBasic
 
     private bool parse_goto(long line_num, List<string> parts)
     {
-      string label = parts[1];
+      string label = parts[1].ToLower();
       long goto_line = 0;
       try
       {
@@ -1185,7 +1185,7 @@ namespace ViuaBasic
           if_idx++;
           if (parts.Count > (idx + 1))
           {
-            label_if = parts[idx + 1];
+            label_if = parts[idx + 1].ToLower();
             long goto_line = 0;
             try
             {
@@ -1207,7 +1207,7 @@ namespace ViuaBasic
                 {
                   if (parts.Count.Equals(idx + 4))
                   {
-                    label_else = parts[idx + 3];
+                    label_else = parts[idx + 3].ToLower();
                     try
                     {
                       goto_line = Convert.ToInt64(label_else);
