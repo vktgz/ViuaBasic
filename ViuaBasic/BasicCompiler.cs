@@ -760,7 +760,8 @@ namespace ViuaBasic
           {
             if (vars.get_type(arg.ToUpper()).Equals(Variables.Type.FLOAT))
             {
-              assembly.Add("vpush %" + (float_reg + 1) + " local %" + vars.get_register(arg.ToUpper()) + " local");
+              assembly.Add("copy %" + (float_reg + 2) + " local %" + vars.get_register(arg.ToUpper()) + " local");
+              assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
               stack++;
             }
             if (vars.get_type(arg.ToUpper()).Equals(Variables.Type.INTEGER))
