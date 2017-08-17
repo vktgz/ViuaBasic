@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<meta name="author" content="vktgz" />
+<meta name="keywords" content="Viua BASIC" />
+<title>ViuaBasic</title>
+<style type="text/css">
+body
+{
+  font-family: sans-serif;
+  background-color: #A0C8A8;
+}
+
+a
+{
+  color: #004000;
+}
+
+a:hover
+{
+  color: #008000;
+}
+td
+{
+  border: 1px solid;
+  padding: 10px;
+}
+button
+{
+  margin-left: 20px;
+}
+div.syntax
+{
+  margin-left: 50px;
+  display: none;
+}
+</style>
+<script type="application/javascript">
+function showSyntax(syntaxID)
+{
+  var elem = document.getElementById(syntaxID)
+  if ((elem.style.display == 'none') || (elem.style.display == ''))
+  {
+    elem.style.display = 'block';
+  }
+  else
+  {
+    elem.style.display = 'none';
+  }
+}
+</script>
+</head>
+
+<body>
+<h1>ViuaBasic</h1>
+<h2>Retro style BASIC dialect for <a href="https://viuavm.org">Viua Virtual Machine</a></h2>
+<p>ViuaBasic is a BASIC compiler for ViuaVM written in C#.</p>
+<h3>Download</h3>
+<p>Source: <a href="https://github.com/vktgz/ViuaBasic.git">GitHub</a>
+<br />Binary: &lt;no release yet&gt; (it is a .NET binary, on Linux/Mac use <a href="http://www.mono-project.com">Mono</a>)</p>
+<h3>Documentation</h3>
+<p>Usage: ViuaBasic &lt;input_file.bas&gt; &lt;output_file.asm&gt;</p>
+<p>Input is a UTF-8 encoded BASIC source, output is a UTF-8 encoded ViuaVM assembly.</p>
+<p>BASIC syntax: single instruction per line. Line numbers are optional, when ommited line numbers from source file are used.
+All instructions, variable names and keywords are case insensitive. String literals are case sensitive, double quote bounded, double quotes inside strings are escaped by repeating them.
+Instruction arguments are comma delimited. Dot is used as a decimal separator. Variables have defined types that can not be changed.
+All math expressions are evaluated as floating point, and when result is stored in integer variable then it is rounded half up.
+<br />For example, two equivalent hello worlds:
+<table><tr><td>
+<pre>10 PRINT "2.2 * 3.3 = ",2.2*3.3
+20 LET A : INTEGER = 0
+30 PRINT "Hello ""WORLD"" ! (",A,")"
+40 LET A = A + 1
+50 GOTO 30</pre>
+</td><td>
+<pre>print "2.2 * 3.3 = ", 2.2 * 3.3
+let a:integer=0
+print "Hello ""WORLD"" ! (", A, ")"
+let a=a+1
+goto 3</pre>
+</td></tr></table>
+</p>
+<p><b>Instruction reference</b></p>
+<p><b>REM</b> makes comment.<button onclick="showSyntax('syntax_rem')">syntax</button></p>
+<div class="syntax" id="syntax_rem"><pre>REM &lt;comment&gt;</pre>
+where comment can be anything, it will be ignored.</div>
+<p><b>LABEL</b> sets a target point for a jump.<button onclick="showSyntax('syntax_label')">syntax</button></p>
+<div class="syntax" id="syntax_label"><pre>LABEL &lt;label_name&gt;</pre>
+where label name must be unique single word, case insensitive.</div>
+<p><b>GOTO</b> performs unconditional jump.<button onclick="showSyntax('syntax_goto')">syntax</button></p>
+<div class="syntax" id="syntax_goto"><pre>GOTO &lt;line_number&gt;
+GOTO &lt;label_name&gt;</pre>
+where line number or label must exist.</div>
+<p><b>PRINT</b> sends a line of text to output.<button onclick="showSyntax('syntax_print')">syntax</button></p>
+<div class="syntax" id="syntax_print"><pre>PRINT &lt;print_list&gt;</pre>
+where print list is a comma separated list of string literals, variable names or math expressions.</div>
+<p><b>LET</b> assigns value to a variable.<button onclick="showSyntax('syntax_let')">syntax</button></p>
+<div class="syntax" id="syntax_let"><pre>LET &lt;variable_name&gt; [: &lt;variable_type&gt;] = &lt;variable_value&gt;</pre>
+where variable name must be unique single word, case insensitive. First assignment to a variable must have type definition. Three types are available:
+<br />INTEGER - 64-bit integer
+<br />FLOAT - 64-bit floating point
+<br />STRING - UTF-8 encoded string
+<br />Reassignments may ommit type definition because it can not be changed. Variable value for integers and floats is a math expression, for strings it is a print list.</div>
+<p><b>FOR</b> begins loop.<button onclick="showSyntax('syntax_for')">syntax</button></p>
+<div class="syntax" id="syntax_for"><pre>FOR &lt;variable_name&gt; = &lt;from_expression&gt; TO &lt;to_expression&gt; [STEP &lt;step_expression&gt;]</pre>
+where variable must be new or existing integer or floating point. If variable exists it will be used and its value set to from expression.
+If variable is new it will be created as integer. For, to and step expressions are evaluated as integer or floating point math expressions, depending on variable type.
+Step is optional and defaults to 1. After loop ends variable value is not changed and can be used. Variable value can be changed inside loop to break loop.</div>
+<p><b>NEXT</b> ends loop.<button onclick="showSyntax('syntax_next')">syntax</button></p>
+<div class="syntax" id="syntax_next"><pre>NEXT &lt;variable_name&gt;</pre>
+where variable must be existing loop variable.</div>
+<p><b>IF</b> performs conditional jump.<button onclick="showSyntax('syntax_if')">syntax</button></p>
+<div class="syntax" id="syntax_if">Single line if:
+<pre>IF &lt;condition&gt; THEN &lt;line_number_or_label&gt; [ELSE &lt;line_number_or_label&gt;]</pre>
+Multi line if:
+<pre>IF &lt;condition&gt; THEN
+ .. block of instructions
+[ELSE
+ .. block of instructions]
+ENDIF</pre>
+where condition is a logical expression and line number or label must exist.</div>
+<p><b>Math expressions</b></p>
+<p>Math expressions can use following operators:
+<br />a <b>+</b> b - addition
+<br />a <b>-</b> b - substraction
+<br />a <b>*</b> b - multiplication
+<br />a <b>/</b> b - division
+<br />a <b>%</b> b - modulo
+<br />a <b>^</b> b - power of</p>
+<p>and following functions:
+<br /><b>ABS(</b>a<b>)</b> - absolute value
+<br /><b>EXP(</b>a<b>)</b> - exponent
+<br /><b>LOG(</b>a<b>)</b> - logarithm</p>
+<p>Unary minus and parentheses are supported.</p>
+<p><b>Logical expressions</b></p>
+<p>Logical expressions can use following operators:
+<br />a <b>=</b> b - equals
+<br />a <b>&lt;</b> b - less than
+<br />a <b>&gt;</b> b - greater than
+<br />a <b>&lt;=</b> b - less than or equals
+<br />a <b>&gt;=</b> b - greater than or equals
+<br />a <b>&lt;&gt;</b> b - not equals
+<br />a <b>OR</b> b - disjunction
+<br />a <b>AND</b> b - conjunction
+<br /><b>NOT</b> a - negation</p>
+<p>Parentheses are supported.</p>
+</body>
+
+</html>
