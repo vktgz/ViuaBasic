@@ -150,6 +150,18 @@ namespace ViuaBasic
       return (arg.Length > 1) && (arg.StartsWith("\"")) && (arg.EndsWith("\""));
     }
 
+    public static string escape_quotes(string arg)
+    {
+      string res = arg;
+      if (arg.Length > 3)
+      {
+        res = arg.Substring(1, arg.Length - 2);
+        res = res.Replace("\"\"", "\\\"");
+        res = "\"" + res + "\"";
+      }
+      return res;
+    }
+
     public static string exp_to_str(List<string> arg)
     {
       string buf = "";

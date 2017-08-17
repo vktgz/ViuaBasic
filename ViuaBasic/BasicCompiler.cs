@@ -675,14 +675,15 @@ namespace ViuaBasic
             math_exp.Add(plist[idx]);
             if (Utl.is_quoted(plist[idx]))
             {
+              string esc = Utl.escape_quotes(plist[idx]);
               if (empty)
               {
-                assembly.Add("text %" + plist_reg + " local " + plist[idx]);
+                assembly.Add("text %" + plist_reg + " local " + esc);
                 empty = false;
               }
               else
               {
-                assembly.Add("text %" + (plist_reg + 1) + " local " + plist[idx]);
+                assembly.Add("text %" + (plist_reg + 1) + " local " + esc);
                 assembly.Add("textconcat %" + plist_reg + " local %" + plist_reg + " local %" + (plist_reg + 1) + " local");
               }
             }

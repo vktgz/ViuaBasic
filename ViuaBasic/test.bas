@@ -47,3 +47,6 @@
 101 let b:float = 3.3
 102 let c:float = a*b
 103 print "c=",c," or c=",a*b
+
+2 print """escaped"""
+3 print "string with ""escaped"" element"
