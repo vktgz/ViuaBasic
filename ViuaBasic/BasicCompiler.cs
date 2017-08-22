@@ -21,7 +21,7 @@ namespace ViuaBasic
     private Dictionary<string, ForLoop> for_loops;
     private Stack<int> nested_ifs;
     private int register, if_idx;
-    private bool math_modulo, math_power, math_round, math_exponent, math_logarithm, math_absolute;
+    private bool math_modulo, math_power, math_round, math_exponent, math_logarithm, math_absolute, use_array;
 
     public BasicCompiler()
     {
@@ -40,6 +40,7 @@ namespace ViuaBasic
       math_exponent = false;
       math_logarithm = false;
       math_absolute = false;
+      use_array = false;
       CultureInfo format = CultureInfo.CreateSpecificCulture("en-US");
       format.NumberFormat.NumberDecimalSeparator = ".";
       Thread.CurrentThread.CurrentCulture = format;
@@ -175,6 +176,13 @@ namespace ViuaBasic
         else if (instr.Equals("ENDIF"))
         {
           if (!parse_endif(line.Key, line.Value))
+          {
+            return false;
+          }
+        }
+        else if (instr.Equals("DIM"))
+        {
+          if (!parse_dim(line.Key, line.Value))
           {
             return false;
           }
@@ -409,6 +417,80 @@ namespace ViuaBasic
         assembly.Add("if (gte %1 local %0 local (fstore %2 local 0)) abs_done");
         assembly.Add("mul %0 local %0 local (fstore %2 local -1)");
         assembly.Add(".mark: abs_done");
+        assembly.Add("return");
+        assembly.Add(".end");
+      }
+      if (use_array)
+      {
+        assembly.Add(".function: array_create/2");
+        assembly.Add("arg %1 local %0");
+        assembly.Add("arg %2 local %1");
+        assembly.Add("vec %0 local");
+        assembly.Add("istore %5 local 0");
+        assembly.Add("if (gt %3 local (vlen %4 local %1 local) %5 local) ar_dims");
+        assembly.Add("throw (strstore %6 local \"array dimension must be greater than zero\")");
+        assembly.Add(".mark: ar_dims");
+        assembly.Add("vpop %4 local %1 local %5 local");
+        assembly.Add("if (gt %3 local %4 local %5 local) ar_dim");
+        assembly.Add("throw (strstore %6 local \"array dimension must be greater than zero\")");
+        assembly.Add(".mark: ar_dim");
+        assembly.Add("if (eq %3 local (vlen %7 local %1 local) %5 local) ar_fill_val");
+        assembly.Add(".mark: ar_fill_arr");
+        assembly.Add("if (eq %3 local %4 local %5 local) ar_done");
+        assembly.Add("frame ^[(param %0 %1 local) (param %1 %2 local)]");
+        assembly.Add("call %7 local array_create/2");
+        assembly.Add("vpush %0 local %7 local");
+        assembly.Add("idec %4 local");
+        assembly.Add("jump ar_fill_arr");
+        assembly.Add(".mark: ar_fill_val");
+        assembly.Add("if (eq %3 local %4 local %5 local) ar_done");
+        assembly.Add("copy %7 local %2 local");
+        assembly.Add("vpush %0 local %7 local");
+        assembly.Add("idec %4 local");
+        assembly.Add("jump ar_fill_val");
+        assembly.Add(".mark: ar_done");
+        assembly.Add("return");
+        assembly.Add(".end");
+        assembly.Add(".function: array_get/2");
+        assembly.Add("arg %1 local %0");
+        assembly.Add("arg %2 local %1");
+        assembly.Add("istore %5 local 0");
+        assembly.Add("if (gt %3 local (vlen %4 local %2 local) %5 local) ar_dims");
+        assembly.Add("throw (strstore %6 local \"array dimension do not match\")");
+        assembly.Add(".mark: ar_dims");
+        assembly.Add("vpop %4 local %2 local %5 local");
+        assembly.Add("if (gte %3 local %4 local %5 local) ar_bound");
+        assembly.Add("if (lt %3 local %4 local (vlen %7 local %1 local)) ar_bound");
+        assembly.Add("throw (strstore %6 local \"array index out of bounds\")");
+        assembly.Add(".mark: ar_bound");
+        assembly.Add("vpop %0 local %1 local %4 local");
+        assembly.Add("if (eq %3 local (vlen %7 local %2 local) %5 local) ar_done");
+        assembly.Add("frame ^[(param %0 %0 local) (param %1 %2 local)]");
+        assembly.Add("call %0 local array_get/2");
+        assembly.Add(".mark: ar_done");
+        assembly.Add("return");
+        assembly.Add(".end");
+        assembly.Add(".function: array_set/3");
+        assembly.Add("arg %1 local %0");
+        assembly.Add("arg %2 local %1");
+        assembly.Add("arg %8 local %2");
+        assembly.Add("istore %5 local 0");
+        assembly.Add("if (gt %3 local (vlen %4 local %2 local) %5 local) ar_dims");
+        assembly.Add("throw (strstore %6 local \"array dimension do not match\")");
+        assembly.Add(".mark: ar_dims");
+        assembly.Add("vpop %4 local %2 local %5 local");
+        assembly.Add("if (gte %3 local %4 local %5 local) ar_bound");
+        assembly.Add("if (lt %3 local %4 local (vlen %7 local *1 local)) ar_bound");
+        assembly.Add("throw (strstore %6 local \"array index out of bounds\")");
+        assembly.Add(".mark: ar_bound");
+        assembly.Add("if (eq %3 local (vlen %7 local %2 local) %5 local) ar_set");
+        assembly.Add("vat %0 local *1 local %4 local");
+        assembly.Add("frame ^[(param %0 %0 local) (param %1 %2 local) (param %2 %8 local)]");
+        assembly.Add("call %0 local array_set/3");
+        assembly.Add("return");
+        assembly.Add(".mark: ar_set");
+        assembly.Add("vpop %0 local *1 local %4 local");
+        assembly.Add("vinsert *1 local %8 local %4 local");
         assembly.Add("return");
         assembly.Add(".end");
       }
@@ -889,7 +971,7 @@ namespace ViuaBasic
 
     private bool parse_let(long line_num, List<string> parts)
     {
-      bool res = false;
+      bool result = false;
       parts = Utl.list_split_separator(parts, ':', true, true);
       parts = Utl.list_split_separator(parts, '=', true, true);
       if (parts.Count > 3)
@@ -909,7 +991,7 @@ namespace ViuaBasic
                 var_type = vars.get_type(var_name);
                 if (!var_type.ToString().Equals(parts[3].ToUpper()))
                 {
-                  Console.WriteLine("?RUNTIME ERROR: VARIABLE " + var_name + " IS OF TYPE " + var_type.ToString());
+                  Console.WriteLine("?SYNTAX ERROR: VARIABLE " + var_name + " IS OF TYPE " + var_type.ToString());
                 }
               }
               else
@@ -917,17 +999,17 @@ namespace ViuaBasic
                 if (parts[3].ToUpper().Equals("INTEGER"))
                 {
                   var_type = Variables.Type.INTEGER;
-                  res = true;
+                  result = true;
                 }
                 if (parts[3].ToUpper().Equals("FLOAT"))
                 {
                   var_type = Variables.Type.FLOAT;
-                  res = true;
+                  result = true;
                 }
                 if (parts[3].ToUpper().Equals("STRING"))
                 {
                   var_type = Variables.Type.STRING;
-                  res = true;
+                  result = true;
                 }
               }
             }
@@ -941,17 +1023,17 @@ namespace ViuaBasic
             if (vars.exists(var_name))
             {
               var_type = vars.get_type(var_name);
-              res = true;
+              result = true;
             }
             else
             {
-              Console.WriteLine("?RUNTIME ERROR: EXPECTING TYPE FOR NEW VARIABLE " + var_name);
+              Console.WriteLine("?SYNTAX ERROR: EXPECTING TYPE FOR NEW VARIABLE " + var_name);
             }
           }
         }
-        if (res)
+        if (result)
         {
-          res = false;
+          result = false;
           if (var_type.Equals(Variables.Type.INTEGER))
           {
             List<string> exp = parts.GetRange(idx, parts.Count - idx);
@@ -965,7 +1047,7 @@ namespace ViuaBasic
               {
                 vars.set_var(var_name, var_type, register++);
               }
-              res = true;
+              result = true;
             }
           }
           if (var_type.Equals(Variables.Type.FLOAT))
@@ -981,7 +1063,7 @@ namespace ViuaBasic
               {
                 vars.set_var(var_name, var_type, register++);
               }
-              res = true;
+              result = true;
             }
           }
           if (var_type.Equals(Variables.Type.STRING))
@@ -997,22 +1079,22 @@ namespace ViuaBasic
               {
                 vars.set_var(var_name, var_type, register++);
               }
-              res = true;
+              result = true;
             }
           }
         }
       }
-      if (!res)
+      if (!result)
       {
         Console.WriteLine("?SYNTAX ERROR: ILLEGAL ASSIGNMENT");
         list(line_num, line_num);
       }
-      return res;
+      return result;
     }
 
     private bool parse_for(long line_num, List<string> parts)
     {
-      bool res = false;
+      bool result = false;
       parts = Utl.list_split_separator(parts, '=', true, true);
       ForLoop for_loop = new ForLoop();
       for_loop.line_num = line_num;
@@ -1130,15 +1212,15 @@ namespace ViuaBasic
           assembly.Add("if (lt %" + register + " local %" + for_loop.register + " local %" + for_loop.to + " local) for_" + for_loop.line_num + "_end");
           assembly.Add(".mark: for_" + for_loop.line_num + "_step");
           for_loops[var_name] = for_loop;
-          res = true;
+          result = true;
         }
       }
-      if (!res)
+      if (!result)
       {
         Console.WriteLine("?SYNTAX ERROR: ILLEGAL LOOP ARGUMENT");
         list(line_num, line_num);
       }
-      return res;
+      return result;
     }
 
     private bool parse_next(long line_num, List<string> parts)
@@ -1410,6 +1492,163 @@ namespace ViuaBasic
         list(line_num, line_num);
         return false;
       }
+    }
+
+    private bool parse_dim(long line_num, List<string> parts)
+    {
+      bool result = false;
+      parts = Utl.list_split_separator(parts, '(', true, true);
+      parts = Utl.list_split_separator(parts, ',', true, true);
+      parts = Utl.list_split_separator(parts, ')', true, true);
+      parts = Utl.list_split_separator(parts, '=', true, true);
+      if (parts.Count > 5)
+      {
+        string var_name = parts[1].ToUpper();
+        if (parts[2].Equals("("))
+        {
+          if (vars.exists(var_name))
+          {
+            Console.WriteLine("?SYNTAX ERROR: VARIABLE " + var_name + " ALREADY EXISTS");
+          }
+          else
+          {
+            List<string> dims = Utl.take_until(3, "=", parts);
+            if (dims.Count > 2)
+            {
+              if (dims[dims.Count - 2].Equals(")"))
+              {
+                Variables.Type var_type = Variables.Type.UNKNOWN;
+                if (dims[dims.Count - 1].ToUpper().Equals("INTEGER"))
+                {
+                  var_type = Variables.Type.INTEGER;
+                }
+                if (dims[dims.Count - 1].ToUpper().Equals("FLOAT"))
+                {
+                  var_type = Variables.Type.FLOAT;
+                }
+                if (dims[dims.Count - 1].ToUpper().Equals("STRING"))
+                {
+                  var_type = Variables.Type.STRING;
+                }
+                if (var_type.Equals(Variables.Type.UNKNOWN))
+                {
+                  Console.WriteLine("?SYNTAX ERROR: EXPECTING TYPE FOR ARRAY " + var_name);
+                }
+                else
+                {
+                  int array_reg = register++;
+                  int init_reg = 0;
+                  result = true;
+                  if (parts.Count > (3 + dims.Count))
+                  {
+                    result = false;
+                    int idx = 3 + dims.Count;
+                    if (parts[idx].Equals("="))
+                    {
+                      if (parts.Count > (idx + 1))
+                      {
+                        idx++;
+                        if (var_type.Equals(Variables.Type.INTEGER))
+                        {
+                          List<string> init_exp = parts.GetRange(idx, parts.Count - idx);
+                          if (parse_integer_exp(array_reg + 1, init_exp, true))
+                          {
+                            init_reg = array_reg + 1;
+                            result = true;
+                          }
+                        }
+                        if (var_type.Equals(Variables.Type.FLOAT))
+                        {
+                          List<string> init_exp = parts.GetRange(idx, parts.Count - idx);
+                          if (parse_float_exp(array_reg + 1, init_exp, true))
+                          {
+                            init_reg = array_reg + 1;
+                            result = true;
+                          }
+                        }
+                        if (var_type.Equals(Variables.Type.STRING))
+                        {
+                          List<string> init_exp = parts.GetRange(idx, parts.Count - idx);
+                          if (parse_print_list(array_reg + 1, init_exp))
+                          {
+                            init_reg = array_reg + 1;
+                            result = true;
+                          }
+                        }
+                      }
+                    }
+                  }
+                  if (result)
+                  {
+                    result = false;
+                    if (init_reg.Equals(0))
+                    {
+                      init_reg = array_reg + 1;
+                      if (var_type.Equals(Variables.Type.INTEGER))
+                      {
+                        assembly.Add("istore %" + init_reg + " 0");
+                      }
+                      if (var_type.Equals(Variables.Type.FLOAT))
+                      {
+                        assembly.Add("fstore %" + init_reg + " 0");
+                      }
+                      if (var_type.Equals(Variables.Type.STRING))
+                      {
+                        assembly.Add("text %" + init_reg + " local \"\"");
+                      }
+                    }
+                    dims.RemoveRange(dims.Count - 2, 2);
+                    dims = Utl.split_separator(Utl.exp_to_str(dims), ',', true, true);
+                    if (!(dims.Count % 2).Equals(0))
+                    {
+                      result = true;
+                      int idx = 0;
+                      int size_reg = init_reg + 1;
+                      assembly.Add("vec %" + size_reg + " local");
+                      while (idx < dims.Count)
+                      {
+                        if (idx > 0)
+                        {
+                          result = result && (dims[idx - 1].Equals(","));
+                          if (!result)
+                          {
+                            break;
+                          }
+                        }
+                        List<string> math_exp = new List<string>();
+                        math_exp.Add(dims[idx]);
+                        if (parse_integer_exp(size_reg + 1, math_exp, false))
+                        {
+                          assembly.Add("vpush %" + size_reg + " local %" + (size_reg + 1) + " local");
+                        }
+                        else
+                        {
+                          result = false;
+                          break;
+                        }
+                        idx = idx + 2;
+                      }
+                      if (result)
+                      {
+                        assembly.Add("frame ^[(param %0 %" + size_reg + " local) (param %1 %" + init_reg + " local)]");
+                        assembly.Add("call %" + array_reg + " local array_create/2");
+                        vars.set_var(var_name, var_type, array_reg);
+                        use_array = true;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      if (!result)
+      {
+        Console.WriteLine("?SYNTAX ERROR: ILLEGAL ARRAY DECLARATION");
+        list(line_num, line_num);
+      }
+      return result;
     }
   }
 }

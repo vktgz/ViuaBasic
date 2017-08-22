@@ -50,3 +50,5 @@
 
 2 print """escaped"""
 3 print "string with ""escaped"" element"
+
+110 dim ar(2,3) integer = 5

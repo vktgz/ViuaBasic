@@ -10,7 +10,8 @@ namespace ViuaBasic
       UNKNOWN,
       INTEGER,
       FLOAT,
-      STRING
+      STRING,
+      ARRAY
     }
 
     private Dictionary<string, int> names;
