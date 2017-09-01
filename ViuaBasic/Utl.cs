@@ -66,17 +66,22 @@ namespace ViuaBasic
       return parts;
     }
 
-    public static List<string> split_separator(string line, char sep, bool trim, bool keep_sep)
+    public static List<string> split_separator(string line, char sep, bool trim, bool keep_sep, bool use_parentheses)
     {
       List<string> parts = new List<string>();
       string part = "";
       bool in_quote = false;
       bool out_quote = false;
+      int parentheses = 0;
       foreach (char c in line)
       {
         if (c.Equals(sep))
         {
-          if (in_quote)
+          if (use_parentheses && (parentheses > 0))
+          {
+            part = part + c;
+          }
+          else if (in_quote)
           {
             part = part + c;
           }
@@ -122,6 +127,17 @@ namespace ViuaBasic
           {
             out_quote = false;
           }
+          if (use_parentheses)
+          {
+            if (c.Equals('('))
+            {
+              parentheses++;
+            }
+            if (c.Equals(')'))
+            {
+              parentheses--;
+            }
+          }
         }
       }
       if (trim)
@@ -135,12 +151,12 @@ namespace ViuaBasic
       return parts;
     }
 
-    public static List<string> list_split_separator(List<string> lines, char sep, bool trim, bool keep_sep)
+    public static List<string> list_split_separator(List<string> lines, char sep, bool trim, bool keep_sep, bool use_parentheses)
     {
       List<string> res = new List<string>();
       foreach (string line in lines)
       {
-        res.AddRange(split_separator(line, sep, trim, keep_sep));
+        res.AddRange(split_separator(line, sep, trim, keep_sep, use_parentheses));
       }
       return res;
     }
@@ -172,7 +188,7 @@ namespace ViuaBasic
       return buf;
     }
 
-    public static List<string> exp_to_math_rpn(List<string> exp)
+    public static List<string> exp_to_math_rpn(List<string> exp, Variables vars)
     {
       List<string> math = exp_to_math(exp);
       List<string> rpn = new List<string>();
@@ -214,7 +230,7 @@ namespace ViuaBasic
               if (stack.Count > 0)
               {
                 elem = stack.Peek();
-                if (elem.Equals("ABS") || elem.Equals("EXP") || elem.Equals("LOG"))
+                if (elem.Equals("ABS") || elem.Equals("EXP") || elem.Equals("LOG") || vars.is_array(elem))
                 {
                   rpn.Add(stack.Pop());
                 }
@@ -227,6 +243,24 @@ namespace ViuaBasic
             }
           }
           unary = false;
+          negate = false;
+        }
+        else if (arg.Equals(","))
+        {
+          while (stack.Count > 0)
+          {
+            if (stack.Peek().Equals(",") || stack.Peek().Equals("+") || stack.Peek().Equals("-") || stack.Peek().Equals("*") || stack.Peek().Equals("/") || stack.Peek().Equals("%") || stack.Peek().Equals("^"))
+            {
+              rpn.Add(stack.Pop());
+              continue;
+            }
+            else
+            {
+              break;
+            }
+          }
+          stack.Push(arg);
+          unary = true;
           negate = false;
         }
         else if (arg.Equals("+") || arg.Equals("-"))
@@ -293,7 +327,7 @@ namespace ViuaBasic
           unary = true;
           negate = false;
         }
-        else if (arg.ToUpper().Equals("ABS") || arg.ToUpper().Equals("EXP") || arg.ToUpper().Equals("LOG"))
+        else if (arg.ToUpper().Equals("ABS") || arg.ToUpper().Equals("EXP") || arg.ToUpper().Equals("LOG") || vars.is_array(arg.ToUpper()))
         {
           stack.Push(arg.ToUpper());
           unary = false;
@@ -322,14 +356,15 @@ namespace ViuaBasic
 
     public static List<string> exp_to_math(List<string> exp)
     {
-      List<string> tmp = list_split_separator(exp, '(', true, true);
-      tmp = list_split_separator(tmp, ')', true, true);
-      tmp = list_split_separator(tmp, '+', true, true);
-      tmp = list_split_separator(tmp, '-', true, true);
-      tmp = list_split_separator(tmp, '*', true, true);
-      tmp = list_split_separator(tmp, '/', true, true);
-      tmp = list_split_separator(tmp, '%', true, true);
-      tmp = list_split_separator(tmp, '^', true, true);
+      List<string> tmp = list_split_separator(exp, '(', true, true, false);
+      tmp = list_split_separator(tmp, ')', true, true, false);
+      tmp = list_split_separator(tmp, ',', true, true, false);
+      tmp = list_split_separator(tmp, '+', true, true, false);
+      tmp = list_split_separator(tmp, '-', true, true, false);
+      tmp = list_split_separator(tmp, '*', true, true, false);
+      tmp = list_split_separator(tmp, '/', true, true, false);
+      tmp = list_split_separator(tmp, '%', true, true, false);
+      tmp = list_split_separator(tmp, '^', true, true, false);
       return tmp;
     }
 
@@ -437,11 +472,11 @@ namespace ViuaBasic
 
     public static List<string> exp_to_logic(List<string> exp)
     {
-      List<string> tmp1 = list_split_separator(exp, '(', true, true);
-      tmp1 = list_split_separator(tmp1, ')', true, true);
-      tmp1 = list_split_separator(tmp1, '<', true, true);
-      tmp1 = list_split_separator(tmp1, '>', true, true);
-      tmp1 = list_split_separator(tmp1, '=', true, true);
+      List<string> tmp1 = list_split_separator(exp, '(', true, true, false);
+      tmp1 = list_split_separator(tmp1, ')', true, true, false);
+      tmp1 = list_split_separator(tmp1, '<', true, true, false);
+      tmp1 = list_split_separator(tmp1, '>', true, true, false);
+      tmp1 = list_split_separator(tmp1, '=', true, true, false);
       List<string> tmp2 = new List<string>();
       int idx = 0;
       while (idx < tmp1.Count)

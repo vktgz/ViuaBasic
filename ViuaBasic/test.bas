@@ -47,8 +47,11 @@
 101 let b:float = 3.3
 102 let c:float = a*b
 103 print "c=",c," or c=",a*b
+104 print """escaped"""
+105 print "string with ""escaped"" element"
 
-2 print """escaped"""
-3 print "string with ""escaped"" element"
-
-110 dim ar(2,3) integer = 5
+2 rem print exp ( 1 * ( 2 - 1 ) + 4 / 4 )
+3 dim ar(2,3) integer = 2
+4 print ar ( 1 * ( 2 - 1 ) , 4 / 4 )
+6 dim ar2(2,3,4) integer = 6
+7 print ar2(0,2,ar(1,1))

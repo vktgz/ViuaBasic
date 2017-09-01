@@ -493,6 +493,37 @@ namespace ViuaBasic
         assembly.Add("vinsert *1 local %8 local %4 local");
         assembly.Add("return");
         assembly.Add(".end");
+          .function: main/0
+          vec %1 local
+          fstore %2 local 3.4
+          vpush %1 local %2 local
+          vec %2 local
+          istore %3 local 5
+          vpush %2 local %3 local
+          istore %3 local 6
+          vpush %2 local %3 local
+          vpush %1 local %2 local
+          print %1 local
+          vpop %2 local %1 local
+          print %2 local
+          vlen %3 local %2 local
+          print %3 local
+          vpop %2 local %1 local
+          print %2 local
+          vlen %3 local %2 local
+          print %3 local
+          print %1 local
+          izero %0 local
+          return
+            .end
+#!/bin/bash
+        rm a.out
+          ./viuavm/build/bin/vm/asm $1 --no-sa
+          ./viuavm/build/bin/vm/kernel a.out
+#!/bin/bash
+        rm a.out
+          ./viuavm/build/bin/vm/asm $1
+          VIUA_ENABLE_TRACING=yes ./viuavm/build/bin/vm/kernel a.out
       }
       return true;
     }
@@ -528,7 +559,7 @@ namespace ViuaBasic
       List<string> args = new List<string>();
       if (parts.Count > 1)
       {
-        args = Utl.split_separator(Utl.exp_to_str(parts.GetRange(1, parts.Count - 1)), ',', true, true);
+        args = Utl.split_separator(Utl.exp_to_str(parts.GetRange(1, parts.Count - 1)), ',', true, true, false);
       }
       long line_from = 0;
       long line_to = 0;
@@ -720,7 +751,7 @@ namespace ViuaBasic
 
     private bool parse_print_list(int plist_reg, List<string> exp)
     {
-      List<string> plist = Utl.split_separator(Utl.exp_to_str(exp), ',', true, true);
+      List<string> plist = Utl.split_separator(Utl.exp_to_str(exp), ',', true, true, true);
       bool result = false;
       bool empty = true;
       if (!(plist.Count % 2).Equals(0))
@@ -815,9 +846,10 @@ namespace ViuaBasic
 
     private bool parse_float_exp(int float_reg, List<string> exp, bool show_err)
     {
-      List<string> rpn = Utl.exp_to_math_rpn(exp);
+      List<string> rpn = Utl.exp_to_math_rpn(exp, vars);
       assembly.Add("vec %" + (float_reg + 1) + " local");
       int stack = 0;
+      bool comma = false;
       foreach (string arg in rpn)
       {
         double num = 0;
@@ -859,8 +891,41 @@ namespace ViuaBasic
               assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
               stack++;
             }
+            if (vars.get_type(arg.ToUpper()).Equals(Variables.Type.ARRAY))
+            {
+              if (stack < 1)
+              {
+                if (show_err)
+                {
+                  Console.WriteLine("?SYNTAX ERROR: ILLEGAL ARITHMETIC EXPRESSION " + Utl.exp_to_str(exp));
+                }
+                return false;
+              }
+              else
+              {
+                assembly.Add("vpop %" + (float_reg + 2) + " local %" + (float_reg + 1) + " local");
+                stack--;
+                assembly.Add("frame ^[(param %0 %" + vars.get_register(arg.ToUpper()) + " local) (param %1 %" + (float_reg + 2) + " local)]");
+                assembly.Add("call %" + (float_reg + 3) + " local array_get/2");
+                if (vars.get_array_type(arg.ToUpper()).Equals(Variables.Type.FLOAT))
+                {
+                  assembly.Add("move %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local");
+                }
+                if (vars.get_array_type(arg.ToUpper()).Equals(Variables.Type.INTEGER))
+                {
+                  assembly.Add("itof %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local");
+                }
+                if (vars.get_array_type(arg.ToUpper()).Equals(Variables.Type.STRING))
+                {
+                  assembly.Add("stof %" + (float_reg + 2) + " local %" + (float_reg + 3) + " local");
+                }
+                assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
+                stack++;
+                comma = false;
+              }
+            }
           }
-          else if (arg.Equals("+") || arg.Equals("-") || arg.Equals("*") || arg.Equals("/") || arg.Equals("%") || arg.Equals("^"))
+          else if (arg.Equals("+") || arg.Equals("-") || arg.Equals("*") || arg.Equals("/") || arg.Equals("%") || arg.Equals("^") || arg.Equals(","))
           {
             if (stack < 2)
             {
@@ -903,6 +968,28 @@ namespace ViuaBasic
                 assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local) (param %1 %" + (float_reg + 2) + " local)]");
                 assembly.Add("call %" + (float_reg + 2) + " local pow/2");
                 math_power = true;
+              }
+              if (arg.Equals(","))
+              {
+                if (comma)
+                {
+                  assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local)]");
+                  assembly.Add("call %" + (float_reg + 4) + " local round/1");
+                  assembly.Add("vinsert %" + (float_reg + 2) + " local %" + (float_reg + 4) + " local (istore %" + (float_reg + 5) + " local 0)");
+                }
+                else
+                {
+                  assembly.Add("vec %" + (float_reg + 4) + " local");
+                  assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local)]");
+                  assembly.Add("call %" + (float_reg + 5) + " local round/1");
+                  assembly.Add("vpush %" + (float_reg + 4) + " local %" + (float_reg + 5) + " local");
+                  assembly.Add("frame ^[(param %0 %" + (float_reg + 2) + " local)]");
+                  assembly.Add("call %" + (float_reg + 5) + " local round/1");
+                  assembly.Add("vpush %" + (float_reg + 4) + " local %" + (float_reg + 5) + " local");
+                  assembly.Add("move %" + (float_reg + 2) + " local %" + (float_reg + 4) + " local");
+                  comma = true;
+                }
+                math_round = true;
               }
               assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
               stack++;
@@ -972,8 +1059,8 @@ namespace ViuaBasic
     private bool parse_let(long line_num, List<string> parts)
     {
       bool result = false;
-      parts = Utl.list_split_separator(parts, ':', true, true);
-      parts = Utl.list_split_separator(parts, '=', true, true);
+      parts = Utl.list_split_separator(parts, ':', true, true, false);
+      parts = Utl.list_split_separator(parts, '=', true, true, false);
       if (parts.Count > 3)
       {
         string var_name = parts[1].ToUpper();
@@ -1095,7 +1182,7 @@ namespace ViuaBasic
     private bool parse_for(long line_num, List<string> parts)
     {
       bool result = false;
-      parts = Utl.list_split_separator(parts, '=', true, true);
+      parts = Utl.list_split_separator(parts, '=', true, true, false);
       ForLoop for_loop = new ForLoop();
       for_loop.line_num = line_num;
       bool stop = false;
@@ -1497,10 +1584,10 @@ namespace ViuaBasic
     private bool parse_dim(long line_num, List<string> parts)
     {
       bool result = false;
-      parts = Utl.list_split_separator(parts, '(', true, true);
-      parts = Utl.list_split_separator(parts, ',', true, true);
-      parts = Utl.list_split_separator(parts, ')', true, true);
-      parts = Utl.list_split_separator(parts, '=', true, true);
+      parts = Utl.list_split_separator(parts, '(', true, true, false);
+      parts = Utl.list_split_separator(parts, ',', true, true, false);
+      parts = Utl.list_split_separator(parts, ')', true, true, false);
+      parts = Utl.list_split_separator(parts, '=', true, true, false);
       if (parts.Count > 5)
       {
         string var_name = parts[1].ToUpper();
@@ -1598,7 +1685,7 @@ namespace ViuaBasic
                       }
                     }
                     dims.RemoveRange(dims.Count - 2, 2);
-                    dims = Utl.split_separator(Utl.exp_to_str(dims), ',', true, true);
+                    dims = Utl.split_separator(Utl.exp_to_str(dims), ',', true, true, false);
                     if (!(dims.Count % 2).Equals(0))
                     {
                       result = true;
@@ -1632,7 +1719,7 @@ namespace ViuaBasic
                       {
                         assembly.Add("frame ^[(param %0 %" + size_reg + " local) (param %1 %" + init_reg + " local)]");
                         assembly.Add("call %" + array_reg + " local array_create/2");
-                        vars.set_var(var_name, var_type, array_reg);
+                        vars.set_array(var_name, var_type, array_reg);
                         use_array = true;
                       }
                     }
