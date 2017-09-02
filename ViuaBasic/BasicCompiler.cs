@@ -493,37 +493,45 @@ namespace ViuaBasic
         assembly.Add("vinsert *1 local %8 local %4 local");
         assembly.Add("return");
         assembly.Add(".end");
-          .function: main/0
-          vec %1 local
-          fstore %2 local 3.4
-          vpush %1 local %2 local
-          vec %2 local
-          istore %3 local 5
-          vpush %2 local %3 local
-          istore %3 local 6
-          vpush %2 local %3 local
-          vpush %1 local %2 local
-          print %1 local
-          vpop %2 local %1 local
-          print %2 local
-          vlen %3 local %2 local
-          print %3 local
-          vpop %2 local %1 local
-          print %2 local
-          vlen %3 local %2 local
-          print %3 local
-          print %1 local
-          izero %0 local
-          return
-            .end
-#!/bin/bash
-        rm a.out
-          ./viuavm/build/bin/vm/asm $1 --no-sa
-          ./viuavm/build/bin/vm/kernel a.out
-#!/bin/bash
-        rm a.out
-          ./viuavm/build/bin/vm/asm $1
-          VIUA_ENABLE_TRACING=yes ./viuavm/build/bin/vm/kernel a.out
+        assembly.Add(".function: is_vec/1");
+        assembly.Add("arg %1 local %0");
+        assembly.Add("istore %2 local 0");
+        assembly.Add("istore %3 local 1");
+        assembly.Add("eq %0 local %2 local %3 local");
+        assembly.Add("try");
+        assembly.Add("catch \"Exception\" .block: do_nothing");
+        assembly.Add("leave");
+        assembly.Add(".end");
+        assembly.Add("enter .block: test_vec");
+        assembly.Add("vlen %4 local %1 local");
+        assembly.Add("istore %3 local 0");
+        assembly.Add("eq %0 local %2 local %3 local");
+        assembly.Add("leave");
+        assembly.Add(".end");
+        assembly.Add("return");
+        assembly.Add(".end");
+        assembly.Add(".function: array_comma/2");
+        assembly.Add("arg %1 local %0");
+        assembly.Add("arg %2 local %1");
+        assembly.Add("frame ^[(param %0 %1 local)]");
+        assembly.Add("call %3 local is_vec/1");
+        assembly.Add("if %3 local push_dim");
+        assembly.Add("vec %0 local");
+        assembly.Add("frame ^[(param %0 %1 local)]");
+        assembly.Add("call %3 local round/1");
+        assembly.Add("vpush %0 local %3 local");
+        assembly.Add("frame ^[(param %0 %2 local)]");
+        assembly.Add("call %3 local round/1");
+        assembly.Add("vpush %0 local %3 local");
+        assembly.Add("jump push_dim_done");
+        assembly.Add(".mark: push_dim");
+        assembly.Add("frame ^[(param %0 %2 local)]");
+        assembly.Add("call %3 local round/1");
+        assembly.Add("vpush %1 local %3 local");
+        assembly.Add("move %0 local %1 local");
+        assembly.Add(".mark: push_dim_done");
+        assembly.Add("return");
+        assembly.Add(".end");
       }
       return true;
     }
@@ -849,7 +857,6 @@ namespace ViuaBasic
       List<string> rpn = Utl.exp_to_math_rpn(exp, vars);
       assembly.Add("vec %" + (float_reg + 1) + " local");
       int stack = 0;
-      bool comma = false;
       foreach (string arg in rpn)
       {
         double num = 0;
@@ -921,7 +928,6 @@ namespace ViuaBasic
                 }
                 assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
                 stack++;
-                comma = false;
               }
             }
           }
@@ -971,24 +977,8 @@ namespace ViuaBasic
               }
               if (arg.Equals(","))
               {
-                if (comma)
-                {
-                  assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local)]");
-                  assembly.Add("call %" + (float_reg + 4) + " local round/1");
-                  assembly.Add("vinsert %" + (float_reg + 2) + " local %" + (float_reg + 4) + " local (istore %" + (float_reg + 5) + " local 0)");
-                }
-                else
-                {
-                  assembly.Add("vec %" + (float_reg + 4) + " local");
-                  assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local)]");
-                  assembly.Add("call %" + (float_reg + 5) + " local round/1");
-                  assembly.Add("vpush %" + (float_reg + 4) + " local %" + (float_reg + 5) + " local");
-                  assembly.Add("frame ^[(param %0 %" + (float_reg + 2) + " local)]");
-                  assembly.Add("call %" + (float_reg + 5) + " local round/1");
-                  assembly.Add("vpush %" + (float_reg + 4) + " local %" + (float_reg + 5) + " local");
-                  assembly.Add("move %" + (float_reg + 2) + " local %" + (float_reg + 4) + " local");
-                  comma = true;
-                }
+                assembly.Add("frame ^[(param %0 %" + (float_reg + 3) + " local) (param %1 %" + (float_reg + 2) + " local)]");
+                assembly.Add("call %" + (float_reg + 2) + " local array_comma/2");
                 math_round = true;
               }
               assembly.Add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");

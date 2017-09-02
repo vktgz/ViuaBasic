@@ -50,8 +50,9 @@
 104 print """escaped"""
 105 print "string with ""escaped"" element"
 
-2 rem print exp ( 1 * ( 2 - 1 ) + 4 / 4 )
-3 dim ar(2,3) integer = 2
-4 print ar ( 1 * ( 2 - 1 ) , 4 / 4 )
-6 dim ar2(2,3,4) integer = 6
-7 print ar2(0,2,ar(1,1))
+110 print exp ( 1 * ( 2 - 1 ) + 4 / 4 )
+111 dim ar(2,3) integer = 2
+112 print ar ( 1 * ( 2 - 1 ) , 4 / 4 )
+113 dim ar2(2,3,4) integer = 6
+114 print ar2(0,2,ar(1,1))
+115 print ar2(0,ar(1,1),3)
