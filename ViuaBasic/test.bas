@@ -56,3 +56,27 @@
 113 dim ar2(2,3,4) integer = 6
 114 print ar2(0,2,ar(1,1))
 115 print ar2(0,ar(1,1),3)
+116 if ar2(0,ar(1,1),3) = 6 then
+117 print "ok"
+118 endif
+119 let ar ( 1 , 1 ) = 4
+120 print ar(1,1)
+121 let z:string = ""
+122 for x = 0 to 1
+123   if x = 0 then
+124     let z = z,"["
+125   else
+126     let z = z,","
+127   endif
+128   for y = 0 to 2
+129     if y = 0 then
+130       let z = z,"["
+131     else
+132       let z = z,","
+133     endif
+134     let z = z,ar(x,y)
+135   next y
+136   let z = z,"]"
+137 next x
+138 let z = z,"]"
+139 print z

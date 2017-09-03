@@ -20,6 +20,7 @@ namespace ViuaBasic
     private Variables vars;
     private Dictionary<string, ForLoop> for_loops;
     private Stack<int> nested_ifs;
+    private List<int> nested_elses;
     private int register, if_idx;
     private bool math_modulo, math_power, math_round, math_exponent, math_logarithm, math_absolute, use_array;
 
@@ -32,6 +33,7 @@ namespace ViuaBasic
       vars = new Variables();
       for_loops = new Dictionary<string, ForLoop>();
       nested_ifs = new Stack<int>();
+      nested_elses = new List<int>();
       register = 1;
       if_idx = 0;
       math_modulo = false;
@@ -105,7 +107,7 @@ namespace ViuaBasic
 
     public bool compile()
     {
-      assembly.Add(".function: main/0");
+      assembly.Add(".function: basic_main/0");
       foreach (KeyValuePair<long, List<string>> line in listing)
       {
         if (goto_lines.Contains(line.Key))
@@ -194,6 +196,12 @@ namespace ViuaBasic
           return false;
         }
       }
+      assembly.Add("izero %0 local");
+      assembly.Add("return");
+      assembly.Add(".end");
+      assembly.Add(".function: main/0");
+      assembly.Add("frame %0 %" + (register + 16));
+      assembly.Add("call basic_main/0");
       assembly.Add("izero %0 local");
       assembly.Add("return");
       assembly.Add(".end");
@@ -1049,114 +1057,174 @@ namespace ViuaBasic
     private bool parse_let(long line_num, List<string> parts)
     {
       bool result = false;
-      parts = Utl.list_split_separator(parts, ':', true, true, false);
       parts = Utl.list_split_separator(parts, '=', true, true, false);
       if (parts.Count > 3)
       {
-        string var_name = parts[1].ToUpper();
-        Variables.Type var_type = Variables.Type.UNKNOWN;
-        int idx = 0;
-        if (parts[2].Equals(":"))
+        List<string> var_exp = Utl.take_until(1, "=", parts);
+        int idx = 1 + var_exp.Count;
+        if (parts.Count > (idx + 1))
         {
-          if (parts.Count > 5)
+          if (parts[idx].ToUpper().Equals("="))
           {
-            if (parts[4].Equals("="))
+            List<string> val_exp = parts.GetRange(idx + 1, parts.Count - (idx + 1));
+            var_exp = Utl.split_separator(Utl.exp_to_str(var_exp), ':', true, true, false);
+            string var_name = "";
+            Variables.Type var_type = Variables.Type.UNKNOWN;
+            if (var_exp.Count.Equals(3))
             {
-              idx = 5;
-              if (vars.exists(var_name))
+              if (var_exp[1].Equals(":"))
               {
-                var_type = vars.get_type(var_name);
-                if (!var_type.ToString().Equals(parts[3].ToUpper()))
+                var_name = var_exp[0].ToUpper();
+                if (vars.exists(var_name))
                 {
-                  Console.WriteLine("?SYNTAX ERROR: VARIABLE " + var_name + " IS OF TYPE " + var_type.ToString());
+                  var_type = vars.get_type(var_name);
+                  if (var_type.ToString().Equals(var_exp[2].ToUpper()))
+                  {
+                    result = true;
+                  }
+                  else
+                  {
+                    Console.WriteLine("?SYNTAX ERROR: VARIABLE " + var_name + " IS OF TYPE " + var_type.ToString());
+                  }
+                }
+                else
+                {
+                  if (var_exp[2].ToUpper().Equals("INTEGER"))
+                  {
+                    var_type = Variables.Type.INTEGER;
+                    result = true;
+                  }
+                  if (var_exp[2].ToUpper().Equals("FLOAT"))
+                  {
+                    var_type = Variables.Type.FLOAT;
+                    result = true;
+                  }
+                  if (var_exp[2].ToUpper().Equals("STRING"))
+                  {
+                    var_type = Variables.Type.STRING;
+                    result = true;
+                  }
                 }
               }
-              else
+            }
+            if (!result)
+            {
+              var_exp = Utl.split_separator(Utl.exp_to_str(var_exp), '(', true, true, false);
+              var_exp = Utl.list_split_separator(var_exp, ',', true, true, false);
+              var_exp = Utl.list_split_separator(var_exp, ')', true, true, false);
+              if (var_exp.Count.Equals(1))
               {
-                if (parts[3].ToUpper().Equals("INTEGER"))
+                var_name = var_exp[0].ToUpper();
+                if (vars.exists(var_name))
                 {
-                  var_type = Variables.Type.INTEGER;
+                  if (vars.is_array(var_name))
+                  {
+                    Console.WriteLine("?SYNTAX ERROR: EXPECTING INDEX FOR ARRAY " + var_name);
+                  }
+                  else
+                  {
+                    var_type = vars.get_type(var_name);
+                    result = true;
+                  }
+                }
+                else
+                {
+                  Console.WriteLine("?SYNTAX ERROR: EXPECTING TYPE FOR NEW VARIABLE " + var_name);
+                }
+              }
+              if (var_exp.Count > 3)
+              {
+                if (var_exp[1].Equals("("))
+                {
+                  if (var_exp[var_exp.Count - 1].Equals(")"))
+                  {
+                    var_name = var_exp[0].ToUpper();
+                    if (vars.is_array(var_name))
+                    {
+                      var_type = Variables.Type.ARRAY;
+                      List<string> dims = var_exp.GetRange(2, var_exp.Count - 3);
+                      if (parse_dim_size(register, dims))
+                      {
+                        result = true;
+                      }
+                    }
+                    else
+                    {
+                      Console.WriteLine("?SYNTAX ERROR: UNKNOWN ARRAY " + var_name);
+                    }
+                  }
+                }
+              }
+            }
+            if (result)
+            {
+              result = false;
+              if (var_type.Equals(Variables.Type.INTEGER))
+              {
+                if (parse_integer_exp(register, val_exp, true))
+                {
+                  if (vars.exists(var_name))
+                  {
+                    assembly.Add("move %" + vars.get_register(var_name) + " local %" + register + " local");
+                  }
+                  else
+                  {
+                    vars.set_var(var_name, var_type, register++);
+                  }
                   result = true;
                 }
-                if (parts[3].ToUpper().Equals("FLOAT"))
+              }
+              if (var_type.Equals(Variables.Type.FLOAT))
+              {
+                if (parse_float_exp(register, val_exp, true))
                 {
-                  var_type = Variables.Type.FLOAT;
+                  if (vars.exists(var_name))
+                  {
+                    assembly.Add("move %" + vars.get_register(var_name) + " local %" + register + " local");
+                  }
+                  else
+                  {
+                    vars.set_var(var_name, var_type, register++);
+                  }
                   result = true;
                 }
-                if (parts[3].ToUpper().Equals("STRING"))
+              }
+              if (var_type.Equals(Variables.Type.STRING))
+              {
+                if (parse_print_list(register, val_exp))
                 {
-                  var_type = Variables.Type.STRING;
+                  if (vars.exists(var_name))
+                  {
+                    assembly.Add("move %" + vars.get_register(var_name) + " local %" + register + " local");
+                  }
+                  else
+                  {
+                    vars.set_var(var_name, var_type, register++);
+                  }
                   result = true;
                 }
               }
-            }
-          }
-        }
-        else
-        {
-          if (parts[2].Equals("="))
-          {
-            idx = 3;
-            if (vars.exists(var_name))
-            {
-              var_type = vars.get_type(var_name);
-              result = true;
-            }
-            else
-            {
-              Console.WriteLine("?SYNTAX ERROR: EXPECTING TYPE FOR NEW VARIABLE " + var_name);
-            }
-          }
-        }
-        if (result)
-        {
-          result = false;
-          if (var_type.Equals(Variables.Type.INTEGER))
-          {
-            List<string> exp = parts.GetRange(idx, parts.Count - idx);
-            if (parse_integer_exp(register, exp, true))
-            {
-              if (vars.exists(var_name))
+              if (var_type.Equals(Variables.Type.ARRAY))
               {
-                assembly.Add("move %" + vars.get_register(var_name) + " local %" + register + " local");
+                if (vars.get_array_type(var_name).Equals(Variables.Type.INTEGER))
+                {
+                  result = parse_integer_exp(register + 1, val_exp, true);
+                }
+                if (vars.get_array_type(var_name).Equals(Variables.Type.FLOAT))
+                {
+                  result = parse_float_exp(register + 1, val_exp, true);
+                }
+                if (vars.get_array_type(var_name).Equals(Variables.Type.STRING))
+                {
+                  result = parse_print_list(register + 1, val_exp);
+                }
+                if (result)
+                {
+                  assembly.Add("ptr %" + (register + 2) + " local %" + vars.get_register(var_name) + " local");
+                  assembly.Add("frame ^[(param %0 %" + (register + 2) + " local) (param %1 %" + register + " local) (param %2 %" + (register + 1) + " local)]");
+                  assembly.Add("call array_set/3");
+                }
               }
-              else
-              {
-                vars.set_var(var_name, var_type, register++);
-              }
-              result = true;
-            }
-          }
-          if (var_type.Equals(Variables.Type.FLOAT))
-          {
-            List<string> exp = parts.GetRange(idx, parts.Count - idx);
-            if (parse_float_exp(register, exp, true))
-            {
-              if (vars.exists(var_name))
-              {
-                assembly.Add("move %" + vars.get_register(var_name) + " local %" + register + " local");
-              }
-              else
-              {
-                vars.set_var(var_name, var_type, register++);
-              }
-              result = true;
-            }
-          }
-          if (var_type.Equals(Variables.Type.STRING))
-          {
-            List<string> exp = parts.GetRange(idx, parts.Count - idx);
-            if (parse_print_list(register, exp))
-            {
-              if (vars.exists(var_name))
-              {
-                assembly.Add("move %" + vars.get_register(var_name) + " local %" + register + " local");
-              }
-              else
-              {
-                vars.set_var(var_name, var_type, register++);
-              }
-              result = true;
             }
           }
         }
@@ -1331,7 +1399,7 @@ namespace ViuaBasic
 
     private bool parse_if(long line_num, List<string> parts)
     {
-      bool res = false;
+      bool result = false;
       int idx = 0;
       string label_if = "";
       string label_else = "";
@@ -1349,19 +1417,19 @@ namespace ViuaBasic
             try
             {
               goto_line = Convert.ToInt64(label_if);
-              res = goto_lines.Contains(goto_line);
+              result = goto_lines.Contains(goto_line);
               label_if = "goto_line_" + goto_line;
             }
             catch
             {
-              res = labels.Contains(label_if);
+              result = labels.Contains(label_if);
               label_if = "label_" + label_if;
             }
-            if (res)
+            if (result)
             {
               if (parts.Count > (idx + 2))
               {
-                res = false;
+                result = false;
                 if (parts[idx + 2].ToUpper().Equals("ELSE"))
                 {
                   if (parts.Count.Equals(idx + 4))
@@ -1370,19 +1438,19 @@ namespace ViuaBasic
                     try
                     {
                       goto_line = Convert.ToInt64(label_else);
-                      res = goto_lines.Contains(goto_line);
+                      result = goto_lines.Contains(goto_line);
                       label_else = "goto_line_" + goto_line;
                     }
                     catch
                     {
-                      res = labels.Contains(label_else);
+                      result = labels.Contains(label_else);
                       label_else = "label_" + label_else;
                     }
                   }
                 }
               }
             }
-            if (!res)
+            if (!result)
             {
               Console.WriteLine("?SYNTAX ERROR: EXPECTING LINE NUMBER OR LABEL");
               list(line_num, line_num);
@@ -1392,13 +1460,14 @@ namespace ViuaBasic
           else
           {
             nested_ifs.Push(if_idx);
+            nested_elses.Add(if_idx);
             label_if = "if_" + if_idx;
             label_else = "else_" + if_idx;
-            res = true;
+            result = true;
           }
-          if (res)
+          if (result)
           {
-            res = false;
+            result = false;
             if (parse_logic_exp(register, cond_exp, true))
             {
               string cond = "if %" + register + " local " + label_if;
@@ -1414,22 +1483,22 @@ namespace ViuaBasic
                   assembly.Add(".mark: " + label_if);
                 }
               }
-              res = true;
+              result = true;
             }
           }
         }
       }
-      if (!res)
+      if (!result)
       {
         Console.WriteLine("?SYNTAX ERROR: ILLEGAL IF ARGUMENT");
         list(line_num, line_num);
       }
-      return res;
+      return result;
     }
 
     private bool parse_logic_exp(int cond_reg, List<string> exp, bool show_err)
     {
-      List<string> rpn = Utl.exp_to_logic_rpn(exp);
+      List<string> rpn = Utl.exp_to_logic_rpn(exp, vars);
       assembly.Add("vec %" + (cond_reg + 1) + " local");
       int stack = 0;
       foreach (string arg in rpn)
@@ -1546,6 +1615,7 @@ namespace ViuaBasic
       {
         assembly.Add("jump endif_" + nested_ifs.Peek());
         assembly.Add(".mark: else_" + nested_ifs.Peek());
+        nested_elses.Remove(nested_ifs.Peek());
         return true;
       }
       else
@@ -1560,6 +1630,10 @@ namespace ViuaBasic
     {
       if (nested_ifs.Count > 0)
       {
+        if (nested_elses.Contains(nested_ifs.Peek()))
+        {
+          assembly.Add(".mark: else_" + nested_ifs.Peek());
+        }
         assembly.Add(".mark: endif_" + nested_ifs.Pop());
         return true;
       }
@@ -1657,7 +1731,6 @@ namespace ViuaBasic
                   }
                   if (result)
                   {
-                    result = false;
                     if (init_reg.Equals(0))
                     {
                       init_reg = array_reg + 1;
@@ -1675,43 +1748,12 @@ namespace ViuaBasic
                       }
                     }
                     dims.RemoveRange(dims.Count - 2, 2);
-                    dims = Utl.split_separator(Utl.exp_to_str(dims), ',', true, true, false);
-                    if (!(dims.Count % 2).Equals(0))
+                    if (parse_dim_size(init_reg + 1, dims))
                     {
-                      result = true;
-                      int idx = 0;
-                      int size_reg = init_reg + 1;
-                      assembly.Add("vec %" + size_reg + " local");
-                      while (idx < dims.Count)
-                      {
-                        if (idx > 0)
-                        {
-                          result = result && (dims[idx - 1].Equals(","));
-                          if (!result)
-                          {
-                            break;
-                          }
-                        }
-                        List<string> math_exp = new List<string>();
-                        math_exp.Add(dims[idx]);
-                        if (parse_integer_exp(size_reg + 1, math_exp, false))
-                        {
-                          assembly.Add("vpush %" + size_reg + " local %" + (size_reg + 1) + " local");
-                        }
-                        else
-                        {
-                          result = false;
-                          break;
-                        }
-                        idx = idx + 2;
-                      }
-                      if (result)
-                      {
-                        assembly.Add("frame ^[(param %0 %" + size_reg + " local) (param %1 %" + init_reg + " local)]");
-                        assembly.Add("call %" + array_reg + " local array_create/2");
-                        vars.set_array(var_name, var_type, array_reg);
-                        use_array = true;
-                      }
+                      assembly.Add("frame ^[(param %0 %" + (init_reg + 1) + " local) (param %1 %" + init_reg + " local)]");
+                      assembly.Add("call %" + array_reg + " local array_create/2");
+                      vars.set_array(var_name, var_type, array_reg);
+                      use_array = true;
                     }
                   }
                 }
@@ -1724,6 +1766,42 @@ namespace ViuaBasic
       {
         Console.WriteLine("?SYNTAX ERROR: ILLEGAL ARRAY DECLARATION");
         list(line_num, line_num);
+      }
+      return result;
+    }
+
+    private bool parse_dim_size(int size_reg, List<string> exp)
+    {
+      bool result = false;
+      exp = Utl.split_separator(Utl.exp_to_str(exp), ',', true, true, false);
+      if (!(exp.Count % 2).Equals(0))
+      {
+        result = true;
+        int idx = 0;
+        assembly.Add("vec %" + size_reg + " local");
+        while (idx < exp.Count)
+        {
+          if (idx > 0)
+          {
+            result = result && (exp[idx - 1].Equals(","));
+            if (!result)
+            {
+              break;
+            }
+          }
+          List<string> math_exp = new List<string>();
+          math_exp.Add(exp[idx]);
+          if (parse_integer_exp(size_reg + 1, math_exp, false))
+          {
+            assembly.Add("vpush %" + size_reg + " local %" + (size_reg + 1) + " local");
+          }
+          else
+          {
+            result = false;
+            break;
+          }
+          idx = idx + 2;
+        }
       }
       return result;
     }

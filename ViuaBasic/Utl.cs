@@ -153,12 +153,12 @@ namespace ViuaBasic
 
     public static List<string> list_split_separator(List<string> lines, char sep, bool trim, bool keep_sep, bool use_parentheses)
     {
-      List<string> res = new List<string>();
+      List<string> result = new List<string>();
       foreach (string line in lines)
       {
-        res.AddRange(split_separator(line, sep, trim, keep_sep, use_parentheses));
+        result.AddRange(split_separator(line, sep, trim, keep_sep, use_parentheses));
       }
-      return res;
+      return result;
     }
 
     public static bool is_quoted(string arg)
@@ -168,14 +168,14 @@ namespace ViuaBasic
 
     public static string escape_quotes(string arg)
     {
-      string res = arg;
+      string result = arg;
       if (arg.Length > 3)
       {
-        res = arg.Substring(1, arg.Length - 2);
-        res = res.Replace("\"\"", "\\\"");
-        res = "\"" + res + "\"";
+        result = arg.Substring(1, arg.Length - 2);
+        result = result.Replace("\"\"", "\\\"");
+        result = "\"" + result + "\"";
       }
-      return res;
+      return result;
     }
 
     public static string exp_to_str(List<string> arg)
@@ -368,9 +368,9 @@ namespace ViuaBasic
       return tmp;
     }
 
-    public static List<string> exp_to_logic_rpn(List<string> exp)
+    public static List<string> exp_to_logic_rpn(List<string> exp, Variables vars)
     {
-      List<string> cond = exp_to_logic(exp);
+      List<string> cond = exp_to_logic(exp, vars);
       List<string> rpn = new List<string>();
       Stack<string> stack = new Stack<string>();
       foreach (string arg in cond)
@@ -470,7 +470,7 @@ namespace ViuaBasic
       return rpn;
     }
 
-    public static List<string> exp_to_logic(List<string> exp)
+    public static List<string> exp_to_logic(List<string> exp, Variables vars)
     {
       List<string> tmp1 = list_split_separator(exp, '(', true, true, false);
       tmp1 = list_split_separator(tmp1, ')', true, true, false);
@@ -540,8 +540,7 @@ namespace ViuaBasic
             if (tmp2[math_idx].Equals("("))
             {
               math_cnt++;
-              math = math + tmp2[math_idx];
-              math_idx++;
+              math = math + tmp2[math_idx++];
               continue;
             }
             else if (tmp2[math_idx].Equals(")"))
@@ -549,8 +548,7 @@ namespace ViuaBasic
               if (math_cnt > 0)
               {
                 math_cnt--;
-                math = math + tmp2[math_idx];
-                math_idx++;
+                math = math + tmp2[math_idx++];
                 continue;
               }
               else
@@ -563,6 +561,7 @@ namespace ViuaBasic
               math = "";
               break;
             }
+            math = math + tmp2[math_idx++];
           }
           if (math.Length.Equals(0))
           {
@@ -571,7 +570,14 @@ namespace ViuaBasic
           }
           else
           {
-            tmp1.Add(math);
+            if ((tmp1.Count > 0) && (vars.is_array(tmp1[tmp1.Count - 1].ToUpper())))
+            {
+              tmp1[tmp1.Count - 1] = tmp1[tmp1.Count - 1] + "(" + math + ")";
+            }
+            else
+            {
+              tmp1.Add(math);
+            }
             idx = math_idx + 1;
           }
         }
@@ -586,17 +592,17 @@ namespace ViuaBasic
 
     public static List<string> take_until(int from_idx, string to_ident, List<string> parts)
     {
-      List<string> res = new List<string>();
+      List<string> result = new List<string>();
       int idx = from_idx;
       while (idx < parts.Count)
       {
         if (parts[idx].ToUpper().Equals(to_ident))
         {
-          return res;
+          return result;
         }
-        res.Add(parts[idx++]);
+        result.Add(parts[idx++]);
       }
-      return res;
+      return result;
     }
   }
 }
