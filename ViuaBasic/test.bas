@@ -80,3 +80,6 @@
 137 next x
 138 let z = z,"]"
 139 print z
+140 for x = 0 to ar( 1, 1 ) - 1
+141 print "x=",x
+142 next x

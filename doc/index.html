@@ -58,14 +58,15 @@ function showSyntax(syntaxID)
 <h2>Retro style BASIC dialect for <a href="https://viuavm.org">Viua Virtual Machine</a></h2>
 <p>ViuaBasic is a BASIC compiler for ViuaVM written in C#.</p>
 <h3>Download</h3>
-<p>Source: <a href="https://github.com/vktgz/ViuaBasic.git">GitHub</a>
-<br />Binary (a .NET binary, on Linux/Mac use <a href="http://www.mono-project.com">Mono</a>):
-<br /> - development - <a href="https://github.com/vktgz/ViuaBasic/releases/download/v0.0.1.0/ViuaBasic.exe">v0.0.1.0/ViuaBasic.exe</a>
-<br /> - stable - &lt;no release yet&gt;</p>
+<p>Source: <a href="https://github.com/vktgz/ViuaBasic.git">GitHub</a></p>
+<p>Binary (a .NET binary, on Linux/Mac use <a href="http://www.mono-project.com">Mono</a>):</p>
+<p> - stable - &lt;no release yet&gt;</p>
+<p> - development - <a href="https://github.com/vktgz/ViuaBasic/releases/download/v0.0.2.0/ViuaBasic.exe">v0.0.2.0/ViuaBasic.exe</a></p>
 <h3>Documentation</h3>
 <p>Usage: ViuaBasic &lt;input_file.bas&gt; &lt;output_file.asm&gt;</p>
 <p>Input is a UTF-8 encoded BASIC source, output is a UTF-8 encoded ViuaVM assembly.</p>
-<p>BASIC syntax: single instruction per line. Line numbers are optional, when ommited line numbers from source file are used.
+<p><b>BASIC syntax</b></p>
+<p>Single instruction per line. Line numbers are optional, when ommited line numbers from source file are used.
 All instructions, variable names and keywords are case insensitive. String literals are case sensitive, double quote bounded, double quotes inside strings are escaped by repeating them.
 Instruction arguments are comma delimited. Dot is used as a decimal separator. Variables have defined types that cannot be changed.
 All math expressions are evaluated as floating point, and when result is stored in integer variable then it is rounded half up.
@@ -98,13 +99,15 @@ where line number or label must exist.</div>
 <p><b>PRINT</b> sends a line of text to output.<button onclick="showSyntax('syntax_print')">syntax</button></p>
 <div class="syntax" id="syntax_print"><pre>PRINT &lt;print_list&gt;</pre>
 where print list is a comma separated list of string literals, variable names or math expressions.</div>
-<p><b>LET</b> assigns value to a variable.<button onclick="showSyntax('syntax_let')">syntax</button></p>
-<div class="syntax" id="syntax_let"><pre>LET &lt;variable_name&gt; [: &lt;variable_type&gt;] = &lt;variable_value&gt;</pre>
+<p><b>LET</b> assigns value to a variable or array element.<button onclick="showSyntax('syntax_let')">syntax</button></p>
+<div class="syntax" id="syntax_let"><pre>LET &lt;variable_name&gt; [: &lt;variable_type&gt;] = &lt;variable_value&gt;
+LET &lt;variable_name&gt; (&lt;array_index&gt;) = &lt;variable_value&gt;</pre>
 where variable name must be unique single word, case insensitive. First assignment to a variable must have type definition. Three types are available:
 <br />INTEGER - 64-bit integer
 <br />FLOAT - 64-bit floating point
 <br />STRING - UTF-8 encoded string
-<br />Reassignments may ommit type definition because it cannot be changed. Variable value for integers and floats is a math expression, for strings it is a print list.</div>
+<br />Reassignments may ommit type definition because it cannot be changed. Variable value for integers and floats is a math expression, for strings it is a print list.
+<br/>Array index is a comma separated list of integer expressions denoting zero based index in each dimension.</div>
 <p><b>FOR</b> begins loop.<button onclick="showSyntax('syntax_for')">syntax</button></p>
 <div class="syntax" id="syntax_for"><pre>FOR &lt;variable_name&gt; = &lt;from_expression&gt; TO &lt;to_expression&gt; [STEP &lt;step_expression&gt;]</pre>
 where variable must be new or existing integer or floating point. If variable exists it will be used and its value set to from expression.
@@ -123,6 +126,12 @@ Multi line if:
  .. block of instructions]
 ENDIF</pre>
 where condition is a logical expression and line number or label must exist.</div>
+<p><b>DIM</b> creates an array.<button onclick="showSyntax('syntax_dim')">syntax</button></p>
+<div class="syntax" id="syntax_dim"><pre>DIM &lt;variable_name&gt; (&lt;array_dimensions&gt;) &lt;variable_type&gt; [= &lt;initial_value&gt;]</pre>
+where variable name must be unique single word, case insensitive. Array dimensions is a comma separated list of integer expressions denoting array size in each dimension.
+Arrays can have 1 or more dimensions, dimension sizes must be greater than zero. All elements of an array hold values of the same type.
+Initial value is optional expression, integer or float or print list depending on array type, when ommited it defaults to zero or empty string.
+Arrays cannot be redefined and resized.</div>
 <p><b>Math expressions</b></p>
 <p>Math expressions can use following operators:
 <br />a <b>+</b> b - addition
