@@ -1,0 +1,4 @@
+#!/bin/bash
+rm a.out
+./viuavm/build/bin/vm/asm $1
+VIUA_ENABLE_TRACING=yes ./viuavm/build/bin/vm/kernel a.out

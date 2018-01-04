@@ -1,0 +1,4 @@
+#!/bin/bash
+rm a.out
+./viuavm/build/bin/vm/asm $1 --no-sa
+./viuavm/build/bin/vm/kernel a.out
