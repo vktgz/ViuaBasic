@@ -1,10 +1,10 @@
 .function: main/0
-  fstore %1 local 2.5 ; from
-  fstore %2 local -8 ; to
-  fstore %3 local -2 ; step
+  float %1 local 2.5 ; from
+  float %2 local -8 ; to
+  float %3 local -2 ; step
   copy %4 local %1 local ; idx = from
   .mark: for_1_begin
-  if (lt %5 local %3 local (fstore %6 local 0)) for_1_descend
+  if (lt %5 local %3 local (float %6 local 0)) for_1_descend
   if (gt %5 local %4 local %2 local) for_1_end
   jump for_1_step
   .mark: for_1_descend

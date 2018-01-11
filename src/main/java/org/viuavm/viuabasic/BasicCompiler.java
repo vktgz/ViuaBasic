@@ -216,24 +216,24 @@ public class BasicCompiler
       assembly.add(".function: mod/2");
       assembly.add("arg %2 local %1");
       assembly.add("arg %3 local %0");
-      assembly.add("if (not (eq %5 local %2 local (fstore %4 local 0))) mod_not_zero");
-      assembly.add("throw (strstore %1 local \"modulo by zero\")");
+      assembly.add("if (not (eq %5 local %2 local (float %4 local 0))) mod_not_zero");
+      assembly.add("throw (string %1 local \"modulo by zero\")");
       assembly.add(".mark: mod_not_zero");
-      assembly.add("if (lt %5 local %2 local (fstore %4 local 0)) mod_negative");
-      assembly.add("fstore %6 local 0");
+      assembly.add("if (lt %5 local %2 local (float %4 local 0)) mod_negative");
+      assembly.add("float %6 local 0");
       assembly.add("copy %7 local %2 local");
       assembly.add("jump mod_prepare");
       assembly.add(".mark: mod_negative");
       assembly.add("copy %6 local %2 local");
-      assembly.add("fstore %7 local 0");
+      assembly.add("float %7 local 0");
       assembly.add(".mark: mod_prepare");
       assembly.add("copy %8 local %2 local");
-      assembly.add("if (lt %5 local %3 local (fstore %4 local 0)) mod_check_step");
-      assembly.add("if (gt %5 local %8 local (fstore %4 local 0)) mod_negate_step mod_check");
+      assembly.add("if (lt %5 local %3 local (float %4 local 0)) mod_check_step");
+      assembly.add("if (gt %5 local %8 local (float %4 local 0)) mod_negate_step mod_check");
       assembly.add(".mark: mod_check_step");
-      assembly.add("if (gt %5 local %8 local (fstore %4 local 0)) mod_check");
+      assembly.add("if (gt %5 local %8 local (float %4 local 0)) mod_check");
       assembly.add(".mark: mod_negate_step");
-      assembly.add("mul %8 local %8 local (fstore %4 local -1)");
+      assembly.add("mul %8 local %8 local (float %4 local -1)");
       assembly.add(".mark: mod_check");
       assembly.add("if (not (gte %5 local %3 local %6 local)) mod_add");
       assembly.add("if (lte %5 local %3 local %7 local) mod_done");
@@ -250,69 +250,69 @@ public class BasicCompiler
       assembly.add(".function: pow/2");
       assembly.add("arg %1 local %0");
       assembly.add("arg %2 local %1");
-      assembly.add("if (not (eq %3 local %2 local (fstore %4 local 1))) pow_pow_zero");
+      assembly.add("if (not (eq %3 local %2 local (float %4 local 1))) pow_pow_zero");
       assembly.add("copy %0 local %1 local");
       assembly.add("jump pow_done");
       assembly.add(".mark: pow_pow_zero");
-      assembly.add("if (not (eq %3 local %2 local (fstore %4 local 0))) pow_pow_minus1");
-      assembly.add("if (not (eq %3 local %1 local (fstore %4 local 0))) pow_pow_zero_base_not_zero");
-      assembly.add("throw (strstore %5 local \"0 ^ 0 is undefined\")");
+      assembly.add("if (not (eq %3 local %2 local (float %4 local 0))) pow_pow_minus1");
+      assembly.add("if (not (eq %3 local %1 local (float %4 local 0))) pow_pow_zero_base_not_zero");
+      assembly.add("throw (string %5 local \"0 ^ 0 is undefined\")");
       assembly.add(".mark: pow_pow_zero_base_not_zero");
-      assembly.add("fstore %0 local 1");
+      assembly.add("float %0 local 1");
       assembly.add("jump pow_done");
       assembly.add(".mark: pow_pow_minus1");
-      assembly.add("if (not (eq %3 local %2 local (fstore %4 local -1))) pow_base_plus1");
-      assembly.add("if (not (eq %3 local %1 local (fstore %4 local 0))) pow_pow_minus1_base_not_zero");
-      assembly.add("throw (strstore %5 local \"divide by zero\")");
+      assembly.add("if (not (eq %3 local %2 local (float %4 local -1))) pow_base_plus1");
+      assembly.add("if (not (eq %3 local %1 local (float %4 local 0))) pow_pow_minus1_base_not_zero");
+      assembly.add("throw (string %5 local \"divide by zero\")");
       assembly.add(".mark: pow_pow_minus1_base_not_zero");
-      assembly.add("div %0 local (fstore %4 local 1) %1 local");
+      assembly.add("div %0 local (float %4 local 1) %1 local");
       assembly.add("jump pow_done");
       assembly.add(".mark: pow_base_plus1");
-      assembly.add("if (not (eq %3 local %1 local (fstore %4 local 1))) pow_base_minus1");
-      assembly.add("fstore %0 local 1");
+      assembly.add("if (not (eq %3 local %1 local (float %4 local 1))) pow_base_minus1");
+      assembly.add("float %0 local 1");
       assembly.add("jump pow_done");
       assembly.add(".mark: pow_base_minus1");
-      assembly.add("if (not (eq %3 local %1 local (fstore %4 local -1))) pow_pow_int");
+      assembly.add("if (not (eq %3 local %1 local (float %4 local -1))) pow_pow_int");
       assembly.add("frame ^[(param %0 %2 local)]");
       assembly.add("call %6 local abs/1");
-      assembly.add("frame ^[(param %0 %6 local) (param %1 (fstore %4 local 2))]");
+      assembly.add("frame ^[(param %0 %6 local) (param %1 (float %4 local 2))]");
       assembly.add("call %6 local mod/2");
-      assembly.add("if (eq %3 local %6 local (fstore %4 local 0)) pow_base_minus1_positive");
-      assembly.add("fstore %0 local -1");
+      assembly.add("if (eq %3 local %6 local (float %4 local 0)) pow_base_minus1_positive");
+      assembly.add("float %0 local -1");
       assembly.add("jump pow_done");
       assembly.add(".mark: pow_base_minus1_positive");
-      assembly.add("fstore %0 local 1");
+      assembly.add("float %0 local 1");
       assembly.add("jump pow_done");
       assembly.add(".mark: pow_pow_int");
       assembly.add("if (not (eq %3 local %2 local (ftoi %4 local %2 local))) pow_other");
-      assembly.add("if (lte %3 local %2 local (fstore %4 local 0)) pow_pow_int_negative");
+      assembly.add("if (lte %3 local %2 local (float %4 local 0)) pow_pow_int_negative");
       assembly.add("frame ^[(param %0 %1 local) (param %1 %2 local)]");
       assembly.add("call %0 local simple_pow/2");
       assembly.add("jump pow_done");
       assembly.add(".mark: pow_pow_int_negative");
-      assembly.add("if (not (eq %3 local %1 local (fstore %4 local 0))) pow_pow_int_negative_base_not_zero");
-      assembly.add("throw (strstore %5 local \"divide by zero\")");
+      assembly.add("if (not (eq %3 local %1 local (float %4 local 0))) pow_pow_int_negative_base_not_zero");
+      assembly.add("throw (string %5 local \"divide by zero\")");
       assembly.add(".mark: pow_pow_int_negative_base_not_zero");
-      assembly.add("mul %6 local %2 local (fstore %4 local -1)");
+      assembly.add("mul %6 local %2 local (float %4 local -1)");
       assembly.add("frame ^[(param %0 %1 local) (param %1 %6 local)]");
       assembly.add("call %6 local simple_pow/2");
-      assembly.add("div %0 local (fstore %4 local 1) %6 local");
+      assembly.add("div %0 local (float %4 local 1) %6 local");
       assembly.add("jump pow_done");
       assembly.add(".mark: pow_other");
-      assembly.add("if (lt %3 local %1 local (fstore %4 local 0)) pow_other_base_negative");
+      assembly.add("if (lt %3 local %1 local (float %4 local 0)) pow_other_base_negative");
       assembly.add("frame ^[(param %0 %1 local) (param %1 %2 local)]");
       assembly.add("call %0 local complicated_pow/2");
       assembly.add("jump pow_done");
       assembly.add(".mark: pow_other_base_negative");
-      assembly.add("throw (strstore %5 local \"result is complex number\")");
+      assembly.add("throw (string %5 local \"result is complex number\")");
       assembly.add(".mark: pow_done");
       assembly.add("return");
       assembly.add(".end");
       assembly.add(".function: simple_pow/2");
       assembly.add("arg %1 local %0");
       assembly.add("arg %2 local %1");
-      assembly.add("fstore %0 local 1");
-      assembly.add("istore %4 local 1");
+      assembly.add("float %0 local 1");
+      assembly.add("integer %4 local 1");
       assembly.add(".mark: spow_loop");
       assembly.add("mul %0 local %0 local %1 local");
       assembly.add("iinc %4 local");
@@ -334,8 +334,8 @@ public class BasicCompiler
       assembly.add("frame ^[(param %0 %6 local)]");
       assembly.add("call %6 local exp/1");
       assembly.add("mul %0 local %0 local %6 local");
-      assembly.add("if (gt %7 local %2 local (fstore %8 local 0)) cpow_done");
-      assembly.add("div %0 local (fstore %8 local 1) %0 local");
+      assembly.add("if (gt %7 local %2 local (float %8 local 0)) cpow_done");
+      assembly.add("div %0 local (float %8 local 1) %0 local");
       assembly.add(".mark: cpow_done");
       assembly.add("return");
       assembly.add(".end");
@@ -344,11 +344,11 @@ public class BasicCompiler
     {
       assembly.add(".function: round/1");
       assembly.add("arg %1 local %0");
-      assembly.add("if (lt %3 local %1 local (fstore %2 local 0)) round_negative");
-      assembly.add("fstore %2 local 0.5");
+      assembly.add("if (lt %3 local %1 local (float %2 local 0)) round_negative");
+      assembly.add("float %2 local 0.5");
       assembly.add("jump math_round");
       assembly.add(".mark: round_negative");
-      assembly.add("fstore %2 local -0.5");
+      assembly.add("float %2 local -0.5");
       assembly.add(".mark: math_round");
       assembly.add("add %1 local %1 local %2 local");
       assembly.add("ftoi %0 local %1 local");
@@ -359,11 +359,11 @@ public class BasicCompiler
     {
       assembly.add(".function: exp/1");
       assembly.add("arg %1 local %0");
-      assembly.add("fstore %0 local 1");
+      assembly.add("float %0 local 1");
       assembly.add("copy %2 local %1 local");
-      assembly.add("fstore %3 local 1");
-      assembly.add("istore %4 local 1");
-      assembly.add("fstore %7 local 0.00000000000000000000000000000001");
+      assembly.add("float %3 local 1");
+      assembly.add("integer %4 local 1");
+      assembly.add("float %7 local 0.00000000000000000000000000000001");
       assembly.add("frame ^[(param %0 %2 local)]");
       assembly.add("call %8 local abs/1");
       assembly.add(".mark: exp_loop");
@@ -381,18 +381,18 @@ public class BasicCompiler
     {
       assembly.add(".function: log/1");
       assembly.add("arg %1 local %0");
-      assembly.add("if (gt %3 local %1 local (fstore %2 local 0)) log_positive");
-      assembly.add("throw (strstore %4 local \"logarithm argument must be greater than zero\")");
+      assembly.add("if (gt %3 local %1 local (float %2 local 0)) log_positive");
+      assembly.add("throw (string %4 local \"logarithm argument must be greater than zero\")");
       assembly.add(".mark: log_positive");
       assembly.add("if (not (isnull %3 local %1 global)) log_begin");
-      assembly.add("frame ^[(param %0 (fstore %2 local 1.9))]");
+      assembly.add("frame ^[(param %0 (float %2 local 1.9))]");
       assembly.add("call %1 global series_log/1");
       assembly.add(".mark: log_begin");
-      assembly.add("fstore %0 local 0");
-      assembly.add("if (lt %3 local %1 local (fstore %2 local 2)) log_rest");
-      assembly.add("istore %4 local 0");
-      assembly.add("fstore %5 local 1.9");
-      assembly.add("fstore %6 local 2");
+      assembly.add("float %0 local 0");
+      assembly.add("if (lt %3 local %1 local (float %2 local 2)) log_rest");
+      assembly.add("integer %4 local 0");
+      assembly.add("float %5 local 1.9");
+      assembly.add("float %6 local 2");
       assembly.add(".mark: log_divide");
       assembly.add("div %1 local %1 local %5 local");
       assembly.add("iinc %4 local");
@@ -406,19 +406,19 @@ public class BasicCompiler
       assembly.add(".end");
       assembly.add(".function: series_log/1");
       assembly.add("arg %1 local %0");
-      assembly.add("sub %1 local %1 local (fstore %2 local 1)");
+      assembly.add("sub %1 local %1 local (float %2 local 1)");
       assembly.add("copy %2 local %1 local");
-      assembly.add("fstore %3 local 1");
-      assembly.add("fstore %0 local 0");
-      assembly.add("istore %4 local 1");
-      assembly.add("fstore %5 local 0.00000000000000000000000000000001");
+      assembly.add("float %3 local 1");
+      assembly.add("float %0 local 0");
+      assembly.add("integer %4 local 1");
+      assembly.add("float %5 local 0.00000000000000000000000000000001");
       assembly.add(".mark: series_log_loop");
       assembly.add("div %6 local %2 local %4 local");
       assembly.add("copy %8 local %6 local");
       assembly.add("mul %6 local %3 local %6 local");
       assembly.add("add %0 local %0 local %6 local");
       assembly.add("mul %2 local %2 local %1 local");
-      assembly.add("mul %3 local %3 local (fstore %6 local -1)");
+      assembly.add("mul %3 local %3 local (float %6 local -1)");
       assembly.add("iinc %4 local");
       assembly.add("if (gte %7 local %8 local %5 local) series_log_loop");
       assembly.add("return");
@@ -428,8 +428,8 @@ public class BasicCompiler
     {
       assembly.add(".function: abs/1");
       assembly.add("arg %0 local %0");
-      assembly.add("if (gte %1 local %0 local (fstore %2 local 0)) abs_done");
-      assembly.add("mul %0 local %0 local (fstore %2 local -1)");
+      assembly.add("if (gte %1 local %0 local (float %2 local 0)) abs_done");
+      assembly.add("mul %0 local %0 local (float %2 local -1)");
       assembly.add(".mark: abs_done");
       assembly.add("return");
       assembly.add(".end");
@@ -439,14 +439,14 @@ public class BasicCompiler
       assembly.add(".function: array_create/2");
       assembly.add("arg %1 local %0");
       assembly.add("arg %2 local %1");
-      assembly.add("vec %0 local");
-      assembly.add("istore %5 local 0");
+      assembly.add("vector %0 local");
+      assembly.add("integer %5 local 0");
       assembly.add("if (gt %3 local (vlen %4 local %1 local) %5 local) ar_dims");
-      assembly.add("throw (strstore %6 local \"array dimension must be greater than zero\")");
+      assembly.add("throw (string %6 local \"array dimension must be greater than zero\")");
       assembly.add(".mark: ar_dims");
       assembly.add("vpop %4 local %1 local %5 local");
       assembly.add("if (gt %3 local %4 local %5 local) ar_dim");
-      assembly.add("throw (strstore %6 local \"array dimension must be greater than zero\")");
+      assembly.add("throw (string %6 local \"array dimension must be greater than zero\")");
       assembly.add(".mark: ar_dim");
       assembly.add("if (eq %3 local (vlen %7 local %1 local) %5 local) ar_fill_val");
       assembly.add(".mark: ar_fill_arr");
@@ -468,14 +468,14 @@ public class BasicCompiler
       assembly.add(".function: array_get/2");
       assembly.add("arg %1 local %0");
       assembly.add("arg %2 local %1");
-      assembly.add("istore %5 local 0");
+      assembly.add("integer %5 local 0");
       assembly.add("if (gt %3 local (vlen %4 local %2 local) %5 local) ar_dims");
-      assembly.add("throw (strstore %6 local \"array dimension do not match\")");
+      assembly.add("throw (string %6 local \"array dimension do not match\")");
       assembly.add(".mark: ar_dims");
       assembly.add("vpop %4 local %2 local %5 local");
       assembly.add("if (gte %3 local %4 local %5 local) ar_bound");
       assembly.add("if (lt %3 local %4 local (vlen %7 local %1 local)) ar_bound");
-      assembly.add("throw (strstore %6 local \"array index out of bounds\")");
+      assembly.add("throw (string %6 local \"array index out of bounds\")");
       assembly.add(".mark: ar_bound");
       assembly.add("vpop %0 local %1 local %4 local");
       assembly.add("if (eq %3 local (vlen %7 local %2 local) %5 local) ar_done");
@@ -488,14 +488,14 @@ public class BasicCompiler
       assembly.add("arg %1 local %0");
       assembly.add("arg %2 local %1");
       assembly.add("arg %8 local %2");
-      assembly.add("istore %5 local 0");
+      assembly.add("integer %5 local 0");
       assembly.add("if (gt %3 local (vlen %4 local %2 local) %5 local) ar_dims");
-      assembly.add("throw (strstore %6 local \"array dimension do not match\")");
+      assembly.add("throw (string %6 local \"array dimension do not match\")");
       assembly.add(".mark: ar_dims");
       assembly.add("vpop %4 local %2 local %5 local");
       assembly.add("if (gte %3 local %4 local %5 local) ar_bound");
       assembly.add("if (lt %3 local %4 local (vlen %7 local *1 local)) ar_bound");
-      assembly.add("throw (strstore %6 local \"array index out of bounds\")");
+      assembly.add("throw (string %6 local \"array index out of bounds\")");
       assembly.add(".mark: ar_bound");
       assembly.add("if (eq %3 local (vlen %7 local %2 local) %5 local) ar_set");
       assembly.add("vat %0 local *1 local %4 local");
@@ -509,8 +509,8 @@ public class BasicCompiler
       assembly.add(".end");
       assembly.add(".function: is_vec/1");
       assembly.add("arg %1 local %0");
-      assembly.add("istore %2 local 0");
-      assembly.add("istore %3 local 1");
+      assembly.add("integer %2 local 0");
+      assembly.add("integer %3 local 1");
       assembly.add("eq %0 local %2 local %3 local");
       assembly.add("try");
       assembly.add("catch \"Exception\" .block: do_nothing");
@@ -518,7 +518,7 @@ public class BasicCompiler
       assembly.add(".end");
       assembly.add("enter .block: test_vec");
       assembly.add("vlen %4 local %1 local");
-      assembly.add("istore %3 local 0");
+      assembly.add("integer %3 local 0");
       assembly.add("eq %0 local %2 local %3 local");
       assembly.add("leave");
       assembly.add(".end");
@@ -530,7 +530,7 @@ public class BasicCompiler
       assembly.add("frame ^[(param %0 %1 local)]");
       assembly.add("call %3 local is_vec/1");
       assembly.add("if %3 local push_dim");
-      assembly.add("vec %0 local");
+      assembly.add("vector %0 local");
       assembly.add("frame ^[(param %0 %1 local)]");
       assembly.add("call %3 local round/1");
       assembly.add("vpush %0 local %3 local");
@@ -869,7 +869,7 @@ public class BasicCompiler
   private boolean parse_float_exp(int float_reg, List<String> exp, boolean show_err)
   {
     List<String> rpn = Utl.exp_to_math_rpn(exp, vars);
-    assembly.add("vec %" + (float_reg + 1) + " local");
+    assembly.add("vector %" + (float_reg + 1) + " local");
     int stack = 0;
     for (String arg : rpn)
     {
@@ -886,7 +886,7 @@ public class BasicCompiler
       }
       if (is_num)
       {
-        assembly.add("fstore %" + (float_reg + 2) + " local " + num);
+        assembly.add("float %" + (float_reg + 2) + " local " + num);
         assembly.add("vpush %" + (float_reg + 1) + " local %" + (float_reg + 2) + " local");
         stack++;
       }
@@ -1347,16 +1347,16 @@ public class BasicCompiler
           for_loop.step = register++;
           if (for_loop.integer)
           {
-            assembly.add("istore %" + for_loop.step + " local 1");
+            assembly.add("integer %" + for_loop.step + " local 1");
           }
           else
           {
-            assembly.add("fstore %" + for_loop.step + " local 1");
+            assembly.add("float %" + for_loop.step + " local 1");
           }
         }
         assembly.add("copy %" + for_loop.register + " local %" + for_loop.from + " local");
         assembly.add(".mark: for_" + for_loop.line_num + "_begin");
-        assembly.add("if (lt %" + register + " local %" + for_loop.step + " local (fstore %" + (register + 1) + " local 0)) for_" + for_loop.line_num + "_descend");
+        assembly.add("if (lt %" + register + " local %" + for_loop.step + " local (float %" + (register + 1) + " local 0)) for_" + for_loop.line_num + "_descend");
         assembly.add("if (gt %" + register + " local %" + for_loop.register + " local %" + for_loop.to + " local) for_" + for_loop.line_num + "_end");
         assembly.add("jump for_" + for_loop.line_num + "_step");
         assembly.add(".mark: for_" + for_loop.line_num + "_descend");
@@ -1505,7 +1505,7 @@ public class BasicCompiler
   private boolean parse_logic_exp(int cond_reg, List<String> exp, boolean show_err)
   {
     List<String> rpn = Utl.exp_to_logic_rpn(exp, vars);
-    assembly.add("vec %" + (cond_reg + 1) + " local");
+    assembly.add("vector %" + (cond_reg + 1) + " local");
     int stack = 0;
     for (String arg : rpn)
     {
@@ -1742,11 +1742,11 @@ public class BasicCompiler
                     init_reg = array_reg + 1;
                     if (var_type.equals(Variables.Type.INTEGER))
                     {
-                      assembly.add("istore %" + init_reg + " 0");
+                      assembly.add("integer %" + init_reg + " 0");
                     }
                     if (var_type.equals(Variables.Type.FLOAT))
                     {
-                      assembly.add("fstore %" + init_reg + " 0");
+                      assembly.add("float %" + init_reg + " 0");
                     }
                     if (var_type.equals(Variables.Type.STRING))
                     {
@@ -1784,7 +1784,7 @@ public class BasicCompiler
     {
       result = true;
       int idx = 0;
-      assembly.add("vec %" + size_reg + " local");
+      assembly.add("vector %" + size_reg + " local");
       while (idx < exp.size())
       {
         if (idx > 0)

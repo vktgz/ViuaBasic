@@ -1,8 +1,8 @@
 .function: main/0
-  fstore %2 local 7.6
+  float %2 local 7.6
   frame ^[(param %0 %2 local)]
   call %1 local exp/1
-  echo (strstore %4 local "exp(7.6) = 1998.19589510 : ")
+  echo (string %4 local "exp(7.6) = 1998.19589510 : ")
   print %1 local
   izero %0 local
   return
@@ -18,16 +18,16 @@
   .name: %6 tmp_bool
   .name: %7 i_max
   arg %argum %0
-  fstore %result 1
+  float %result 1
   copy %iks %argum
-  fstore %silnia 1
-  istore %i 1
-  istore %i_max 50
+  float %silnia 1
+  integer %i 1
+  integer %i_max 50
   .mark: exp_loop
   div %tmp_float %iks %silnia
   add %result %result %tmp_float
   echo %i
-  echo (strstore %8 local " ")
+  echo (string %8 local " ")
   print %result
   mul %iks %iks %argum
   iinc %i
