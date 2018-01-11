@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.viuavm</groupId>
   <artifactId>ViuaBasic</artifactId>
-  <version>0.0.1</version>
+  <version>0.0.3</version>
   <packaging>jar</packaging>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -13,6 +13,7 @@
   <name>ViuaBasic</name>
   <description>Retro style BASIC dialect for Viua Virtual Machine</description>
   <build>
+    <finalName>ViuaBasic</finalName>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

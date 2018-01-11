@@ -71,7 +71,7 @@ public class ViuaBasic
     }
     else
     {
-      System.out.println("usage: java -jar " + ViuaBasic.class.getPackage().getImplementationTitle() + "-" + ViuaBasic.class.getPackage().getImplementationVersion() + ".jar <input_file.bas> <output_file.asm>");
+      System.out.println("usage: java -jar ViuaBasic.jar <input_file.bas> <output_file.asm>");
     }
   }
 }
