@@ -173,8 +173,8 @@ public class Utl
     String result = arg;
     if (arg.length() > 3)
     {
-      result = arg.substring(1, arg.length() - 2);
-      result = result.replaceAll("\"\"", "\\\"");
+      result = arg.substring(1, arg.length() - 1);
+      result = result.replace("\"\"", "\\\"");
       result = "\"" + result + "\"";
     }
     return result;

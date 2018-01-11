@@ -47,6 +47,7 @@ public class ViuaBasic
               for (String line_out : compiler.output())
               {
                 dstAsm.write(line_out.getBytes(StandardCharsets.UTF_8));
+                dstAsm.write("\n".getBytes());
               }
               dstAsm.close();
             }
